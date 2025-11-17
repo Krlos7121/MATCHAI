@@ -1,0 +1,12 @@
+.login-bg {
+  height: 100vh;
+  background: url("../components/assets/bg-cow-pattern.png") no-repeat center
+    center;
+  background-size: cover; /* o "contain", según tu necesidad */
+  background-clip: padding-box;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  padding: 1%;
+}
