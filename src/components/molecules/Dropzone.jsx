@@ -1,14 +1,10 @@
 import { useState, useRef } from "react";
 import Typography from "@mui/material/Typography";
-import LinearProgress from "@mui/material/LinearProgress";
 import DropzoneBox from "../atoms/DropzoneBox";
-import CheckIcon from "@mui/icons-material/Check";
 
 export default function Dropzone({ onFileSelected, onError }) {
   const [dragging, setDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [success, setSuccess] = useState(false);
 
   const inputRef = useRef(null);
 
@@ -19,6 +15,12 @@ export default function Dropzone({ onFileSelected, onError }) {
     "application/csv",
     "application/vnd.ms-excel",
     "text/plain",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+    "application/vnd.ms-excel.sheet.macroEnabled.12", // .xlsm
+    "application/vnd.ms-excel.sheet.binary.macroEnabled.12", // .xlsb
+    "application/vnd.ms-excel.template.macroEnabled.12", // .xltm
+    "application/vnd.ms-excel.addin.macroEnabled.12", // .xlam
+    "application/vnd.ms-excel", // .xls
   ];
 
   const formatSize = (bytes) => {
@@ -27,30 +29,29 @@ export default function Dropzone({ onFileSelected, onError }) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const simulateUpload = () => {
-    setUploadProgress(0);
-    setSuccess(false);
-    let progress = 0;
-
-    const interval = setInterval(() => {
-      progress += 10;
-      setUploadProgress(progress);
-
-      if (progress >= 100) {
-        clearInterval(interval);
-        setSuccess(true);
-      }
-    }, 200);
+  const readFileContent = (file) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      onFileSelected(file, event.target.result);
+    };
+    reader.onerror = () => {
+      onError("Error al leer el archivo");
+    };
+    reader.readAsText(file);
   };
 
   const validateFile = (file) => {
     if (!file) return;
 
     const isCsvByName = file.name.toLowerCase().endsWith(".csv");
-    const isCsvByType = VALID_MIMES.includes(file.type);
+    const isExcelByName =
+      file.name.toLowerCase().endsWith(".xlsx") ||
+      file.name.toLowerCase().endsWith(".xls") ||
+      file.name.toLowerCase().endsWith(".xlsm");
+    const isValidByType = VALID_MIMES.includes(file.type);
 
-    if (!isCsvByName && !isCsvByType) {
-      onError("El archivo debe ser un .csv");
+    if (!(isCsvByName || isExcelByName || isValidByType)) {
+      onError("El archivo debe ser un .csv o un archivo de Excel");
       return;
     }
 
@@ -61,9 +62,7 @@ export default function Dropzone({ onFileSelected, onError }) {
 
     onError("");
     setSelectedFile(file);
-    onFileSelected(file);
-
-    simulateUpload();
+    readFileContent(file);
   };
 
   const handleDrop = (e) => {
@@ -80,7 +79,6 @@ export default function Dropzone({ onFileSelected, onError }) {
   return (
     <DropzoneBox
       dragging={dragging}
-      success={success}
       onClick={() => inputRef.current?.click()}
       onDrop={handleDrop}
       onDragOver={(e) => {
@@ -90,8 +88,14 @@ export default function Dropzone({ onFileSelected, onError }) {
       onDragLeave={() => setDragging(false)}>
       {/* MENSAJE PRINCIPAL */}
       {!selectedFile && (
-        <Typography sx={{ opacity: 0.7, fontSize: "18px" }}>
-          Arrastra o selecciona un archivo .csv
+        <Typography
+          sx={{
+            opacity: 0.7,
+            fontSize: "18px",
+            textAlign: "center",
+            display: "flex",
+          }}>
+          Arrastra o selecciona un archivo .csv o de Excel
         </Typography>
       )}
 
@@ -105,30 +109,6 @@ export default function Dropzone({ onFileSelected, onError }) {
           <Typography sx={{ opacity: 0.7, fontSize: "14px" }}>
             {formatSize(selectedFile.size)}
           </Typography>
-
-          <LinearProgress
-            variant="determinate"
-            value={uploadProgress}
-            sx={{
-              width: "80%",
-              mt: 1,
-              borderRadius: 2,
-              height: 8,
-              backgroundColor: "#d7d7d7",
-            }}
-          />
-
-          {/* CHECK DE ÉXITO */}
-          {success && (
-            <CheckIcon
-              sx={{
-                color: "green",
-                fontSize: 50,
-                position: "absolute",
-                bottom: 16,
-              }}
-            />
-          )}
         </>
       )}
 
@@ -136,7 +116,7 @@ export default function Dropzone({ onFileSelected, onError }) {
       <input
         ref={inputRef}
         type="file"
-        accept=".csv"
+        accept=".csv,.xlsx,.xls,.xlsm,.xlsb,.xltm,.xlam"
         onChange={handleFileSelect}
         style={{ display: "none" }}
       />

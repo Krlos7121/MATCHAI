@@ -1,21 +1,16 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { ThemeProvider } from "@mui/material/styles";
-import LoginPage from "./components/pages/LoginPage";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import UploadPage from "./components/pages/UploadPage";
-import theme from "./theme/theme";
-// import Dashboard from "./components/pages/Dashboard"; // ejemplo
+import ResultsPage from "./components/pages/ResultsPage"; // Nueva página para mostrar resultados
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <BrowserRouter>
-        <Routes>
-          {/* Página inicial */}
-          <Route path="/" element={<LoginPage />} />
-          <Route path="/upload" element={<UploadPage />} />
-        </Routes>
-      </BrowserRouter>
-    </ThemeProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<UploadPage />} />
+        <Route path="/results" element={<ResultsPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
