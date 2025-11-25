@@ -14,11 +14,15 @@ function createWindow() {
     },
   });
 
-  if (process.env.NODE_ENV === "development") {
-    mainWindow.loadURL("http://localhost:5173");
+  // Cargar el servidor de desarrollo o el build estático según el entorno
+  if (process.env.NODE_ENV === "development" || !app.isPackaged) {
+    // mainWindow.loadURL("http://localhost:5173");
+    mainWindow.loadFile(path.join(__dirname, "dist", "index.html"));
     mainWindow.webContents.openDevTools();
   } else {
+    // En producción carga el HTML empaquetado (file://)
     mainWindow.loadFile(path.join(__dirname, "dist", "index.html"));
+    mainWindow.webContents.openDevTools();
   }
 }
 

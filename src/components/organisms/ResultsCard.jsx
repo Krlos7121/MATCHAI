@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import Logo from "../atoms/Logo";
@@ -13,14 +14,13 @@ export default function ResultsCard({ data }) {
   const [error, setError] = useState("");
   const [chartData, setChartData] = useState({ labels: [], data: [] });
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    console.log("Data recibida en ResultsCard:", data);
     if (data) {
       try {
         setLoading(true);
         const processed = processCSVData(data);
-        console.log("Datos procesados:", processed);
         setChartData(processed);
         setLoading(false);
       } catch (err) {
@@ -132,7 +132,7 @@ export default function ResultsCard({ data }) {
           textAlign: "center",
           cursor: "pointer",
         }}
-        onClick={() => (window.location.href = "/")}>
+        onClick={() => navigate("/")}>
         Cargar otro archivo
       </Typography>
     </Box>

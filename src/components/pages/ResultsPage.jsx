@@ -9,9 +9,6 @@ import Typography from "@mui/material/Typography";
 function ResultsPage() {
   const location = useLocation();
   const { data } = location.state || {};
-
-  console.log("Datos recibidos en ResultsPage:", data);
-
   return (
     <div className="theme-bg">
       <ResultsCard data={data}></ResultsCard>

@@ -18,7 +18,6 @@ export default function UploadForm({ onUpload, processing, onFileConfirmed }) {
       return;
     }
 
-    console.log("ARCHIVO LISTO:", file);
     setError("");
 
     if (onFileConfirmed) {
