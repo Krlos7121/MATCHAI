@@ -2,6 +2,7 @@ require("dotenv").config();
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const { spawn } = require("child_process");
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -22,21 +23,52 @@ function createWindow() {
   }
 }
 
-// IPC Handlers para procesar archivos
+/* ============================================================
+   📌 IPC HANDLER: Procesar un archivo Excel mediante Python
+   ============================================================ */
 ipcMain.handle("process-file", async (event, filePath) => {
-  try {
-    // Leer archivo
-    const fileContent = fs.readFileSync(filePath, "utf8");
+  return new Promise((resolve, reject) => {
+    const pythonScript = path.join(__dirname, "python", "process_xlsx.py");
 
-    // Aquí procesarías con tu modelo
-    // const results = await yourModelProcess(fileContent);
+    // Ejecutar script Python
+    const py = spawn("python", [pythonScript, filePath]);
 
-    return { success: true, data: fileContent };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
+    let output = "";
+    let errorOutput = "";
+
+    // Recibir stdout → CSV generado por Python
+    py.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+
+    // Recibir stderr → errores del script
+    py.stderr.on("data", (data) => {
+      errorOutput += data.toString();
+      console.error("[PY STDERR]", data.toString());
+    });
+
+    // Cuando termina Python
+    py.on("close", (code) => {
+      if (code !== 0) {
+        console.error("Python terminó con código", code, errorOutput);
+        return resolve({
+          success: false,
+          error: "Error al procesar archivo en Python",
+        });
+      }
+
+      // Éxito → regresamos el CSV como string
+      resolve({
+        success: true,
+        data: output,
+      });
+    });
+  });
 });
 
+/* ============================================================
+   🌟 Electron Lifecycle
+   ============================================================ */
 app.whenReady().then(() => {
   createWindow();
 
