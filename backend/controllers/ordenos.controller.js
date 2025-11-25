@@ -25,15 +25,20 @@ export const uploadAndClean = (req, res) => {
     if (!fs.existsSync(outputsDir)) {
       fs.mkdirSync(outputsDir, { recursive: true });
     }
-    const outputPath = path.join(outputsDir, "ordenos_limpios.xlsx");
 
+    // NUEVAS SALIDAS: limpio + features
+    const cleanOutputPath = path.join(outputsDir, "ordenos_limpios.xlsx");
+    const featuresOutputPath = path.join(outputsDir, "ordenos_features.xlsx");
+
+    // 🔁 AHORA USAMOS EL PIPELINE UNIFICADO
     const scriptPath = path.join(projectRoot, "python", "process_xlsx.py");
+    // Si tu archivo se llama distinto, cámbialo aquí ^
 
     if (!fs.existsSync(scriptPath)) {
       console.error("[ERROR] Script Python no encontrado:", scriptPath);
       return res
         .status(500)
-        .json({ message: "Script de limpieza no encontrado en el servidor." });
+        .json({ message: "Script de pipeline no encontrado en el servidor." });
     }
 
     if (!fs.existsSync(descPath)) {
@@ -43,10 +48,11 @@ export const uploadAndClean = (req, res) => {
         .json({ message: "Archivo de descripción no encontrado en el servidor." });
     }
 
-    console.log("[INFO] Ejecutando script de limpieza...");
+    console.log("[INFO] Ejecutando script de pipeline (limpieza + features)...");
     console.log("     inputDir:", inputDir);
     console.log("     descPath:", descPath);
-    console.log("     outputPath:", outputPath);
+    console.log("     cleanOutputPath:", cleanOutputPath);
+    console.log("     featuresOutputPath:", featuresOutputPath);
 
     const pythonProcess = spawn(
       "python",
@@ -56,8 +62,10 @@ export const uploadAndClean = (req, res) => {
         inputDir,
         "--desc-path",
         descPath,
-        "--output-path",
-        outputPath,
+        "--clean-output",
+        cleanOutputPath,
+        "--features-output",
+        featuresOutputPath,
       ],
       {
         cwd: projectRoot,
@@ -85,21 +93,26 @@ export const uploadAndClean = (req, res) => {
 
       if (code !== 0) {
         return res.status(500).json({
-          message: "Ocurrió un error al limpiar los datos.",
+          message: "Ocurrió un error al ejecutar el pipeline de ordeños.",
           code,
           stderr: stderrData,
         });
       }
 
-      if (!fs.existsSync(outputPath)) {
+      // Verificamos que se hayan generado ambas salidas
+      if (!fs.existsSync(cleanOutputPath) || !fs.existsSync(featuresOutputPath)) {
+        console.error("[ERROR] Archivos de salida no encontrados tras ejecutar el script.");
         return res.status(500).json({
-          message: "El script terminó pero no se encontró el archivo de salida.",
+          message:
+            "El script terminó pero no se encontraron uno o más archivos de salida.",
         });
       }
 
+      // Lo que regresa al frontend
       return res.status(200).json({
-        message: "Limpieza completada correctamente.",
-        outputFile: "outputs/ordenos_limpios.xlsx",
+        message: "Pipeline completado correctamente (limpieza + features).",
+        cleanFile: "outputs/ordenos_limpios-test.xlsx",
+        featuresFile: "outputs/ordenos_features-test.xlsx",
         logs: stdoutData,
       });
     });
