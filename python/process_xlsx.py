@@ -9,8 +9,29 @@
 #   5) Guardar:
 #        - archivo limpio
 #        - archivo con features
-
+#
+# Cambio: al guardar a Excel aseguramos que la columna 'fecha' tenga solo
+# año/mes/día (sin hora) para evitar que aparezca "00:00:00" en los archivos.
 import argparse
+import pandas as pd
+
+# Monkey-patch a DataFrame.to_excel para convertir 'fecha' a fecha (sin hora)
+_original_df_to_excel = pd.DataFrame.to_excel
+
+
+def _df_to_excel_strip_time(self, *args, **kwargs):
+    df_copy = self.copy()
+    if "fecha" in df_copy.columns:
+        # Normalizar a fecha (yyyy-mm-dd) quitando la hora si existe
+        try:
+            df_copy["fecha"] = pd.to_datetime(df_copy["fecha"], errors="coerce").dt.date
+        except Exception:
+            # si falla, dejar la columna como está
+            pass
+    return _original_df_to_excel(df_copy, *args, **kwargs)
+
+
+pd.DataFrame.to_excel = _df_to_excel_strip_time
 import os
 import glob
 import re
