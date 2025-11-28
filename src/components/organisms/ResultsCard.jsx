@@ -31,8 +31,8 @@ function ResultsCard({ cowId, alerts }) {
             <TableHead>
               <TableRow>
                 <TableCell sx={{ color: "#ccc" }}>Fecha</TableCell>
-                <TableCell sx={{ color: "#ccc" }}>Probabilidad</TableCell>
-                <TableCell sx={{ color: "#ccc" }}>Nivel alarma</TableCell>
+                <TableCell sx={{ color: "#ccc" }}>Score (sobre un valor de 100)</TableCell>
+                <TableCell sx={{ color: "#ccc" }}>Nivel de alarma</TableCell>
                 <TableCell sx={{ color: "#ccc" }}>Total alertas</TableCell>
               </TableRow>
             </TableHead>
