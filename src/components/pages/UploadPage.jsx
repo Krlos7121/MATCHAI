@@ -1,22 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import UploadForm from "../organisms/UploadForm";
 import "../../styles/theme.css";
+import axios from "axios";
 
 function UploadPage() {
   const navigate = useNavigate();
   const [processing, setProcessing] = useState(false);
 
-  // Ahora esto recibe la RESPUESTA del backend (normalmente response.data)
-  // Viene de UploadForm: onFileConfirmed(backendResponse)
+  // 👇 Se ejecuta al cargar la página (primer render)
+  useEffect(() => {
+    const cleanupUploads = async () => {
+      try {
+        await axios.post("/api/ordenos/cleanup");
+        console.log("[FRONT] Carpeta uploads/ordeños limpiada antes de subir nuevos archivos.");
+      } catch (err) {
+        console.error("[FRONT] Error al limpiar uploads/ordeños:", err);
+        // No mostramos nada al usuario, solo log
+      }
+    };
+
+    cleanupUploads();
+  }, []); // solo una vez al montar
+
   const handleFileConfirmed = (backendResponse) => {
     if (!backendResponse) return;
 
-    // Log para revisar qué está regresando el backend
     console.log("Respuesta del backend en UploadPage:", backendResponse);
 
-    // En vez de desestructurar solo outputFile/logs/message,
-    // mandamos TODO al ResultsPage como "data"
     navigate("/results", {
       state: {
         data: backendResponse,
@@ -28,7 +39,7 @@ function UploadPage() {
     <div className="theme-bg">
       <UploadForm
         onFileConfirmed={handleFileConfirmed}
-        processing={processing} // listo por si luego controlas el loading
+        processing={processing}
       />
     </div>
   );

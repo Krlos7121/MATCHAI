@@ -12,6 +12,44 @@ const __dirname = path.dirname(__filename);
 // backend/.. → raíz del proyecto (MATCHAI/)
 const projectRoot = path.join(__dirname, "..", "..");
 
+export const cleanupOrdenosUploads = (req, res) => {
+  try {
+    const uploadsDir = path.join(projectRoot, "uploads", "ordeños");
+
+    if (!fs.existsSync(uploadsDir)) {
+      console.log("[CLEANUP] Carpeta de uploads no existe, nada que borrar.");
+      return res.status(200).json({ message: "No hay carpeta de uploads, nada que limpiar." });
+    }
+
+    const entries = fs.readdirSync(uploadsDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.join(uploadsDir, entry.name);
+
+      try {
+        if (entry.isFile()) {
+          fs.unlinkSync(fullPath);
+          console.log("[CLEANUP] Archivo borrado:", fullPath);
+        } else if (entry.isDirectory()) {
+          // Por si acaso hay subcarpetas dentro de ordeños
+          fs.rmSync(fullPath, { recursive: true, force: true });
+          console.log("[CLEANUP] Carpeta borrada:", fullPath);
+        }
+      } catch (innerErr) {
+        console.error("[CLEANUP-ERROR] No se pudo borrar:", fullPath, innerErr);
+      }
+    }
+
+    return res.status(200).json({ message: "Carpeta uploads/ordeños limpiada correctamente." });
+  } catch (err) {
+    console.error("[CLEANUP-ERROR]", err);
+    return res.status(500).json({
+      message: "Error al limpiar la carpeta de uploads.",
+      error: err.message,
+    });
+  }
+};
+
 export const uploadAndClean = (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {

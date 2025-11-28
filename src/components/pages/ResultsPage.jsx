@@ -3,6 +3,7 @@ import "../../styles/theme.css";
 import ResultsCard from "../organisms/ResultsCard";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
+import BackToUploadButton from "../atoms/BackToUploadButton"; // 👈 NUEVO
 
 function ResultsPage() {
   const location = useLocation();
@@ -13,7 +14,7 @@ function ResultsPage() {
   const alerts = (data && data.alerts) || [];
 
   console.log("Datos completos recibidos en ResultsPage:", data);
-  console.log("Alertas filtradas (medio-alto / alto):", alerts);
+  console.log("Alertas filtradas (umbral de total_alertas):", alerts);
 
   // Agrupar alertas por vaca (puede venir como 'vaca' o 'vaca_id')
   const alertsByCow = alerts.reduce((acc, row) => {
@@ -29,13 +30,18 @@ function ResultsPage() {
     <div className="theme-bg">
       <Box sx={{ p: 4 }}>
         <Typography variant="h4" sx={{ mb: 2, color: "#fff" }}>
-          Alertas de mastitis (niveles medio-alto y alto)
+          Alertas de mastitis recientes
         </Typography>
 
         {alerts.length === 0 ? (
-          <Typography sx={{ color: "#ddd" }}>
-            No se detectaron alertas de nivel medio-alto o alto para las vacas procesadas.
-          </Typography>
+          <>
+            <Typography sx={{ color: "#ddd", mb: 2 }}>
+              No se detectaron alertas que cumplan con el umbral configurado.
+            </Typography>
+            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+              <BackToUploadButton label="Subir nuevos archivos" />
+            </Box>
+          </>
         ) : (
           cowIds.map((cowId) => (
             <Box key={cowId} sx={{ mb: 3 }}>

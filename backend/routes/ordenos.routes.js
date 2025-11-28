@@ -4,7 +4,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { uploadAndClean } from "../controllers/ordenos.controller.js";
+import { uploadAndClean, cleanupOrdenosUploads } from "../controllers/ordenos.controller.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,6 +43,48 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({ storage, fileFilter });
 
-router.post("/api/ordenos/upload", upload.array("files", 20), uploadAndClean);
+
+// 🔥 Middleware interno para ejecutar cleanup SIN enviar respuesta
+const silentCleanupMiddleware = (req, res, next) => {
+  try {
+    const uploadsDir = uploadDir;
+
+    if (fs.existsSync(uploadsDir)) {
+      const entries = fs.readdirSync(uploadsDir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(uploadsDir, entry.name);
+
+        try {
+          if (entry.isFile()) {
+            fs.unlinkSync(fullPath);
+            console.log("[CLEANUP-BEFORE-UPLOAD] Archivo eliminado:", fullPath);
+          } else if (entry.isDirectory()) {
+            fs.rmSync(fullPath, { recursive: true, force: true });
+            console.log("[CLEANUP-BEFORE-UPLOAD] Carpeta eliminada:", fullPath);
+          }
+        } catch (err) {
+          console.error("[CLEANUP-BEFORE-UPLOAD] Error al borrar:", fullPath, err);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[CLEANUP-BEFORE-UPLOAD] Error general:", err);
+  }
+
+  next(); // continuar con multer
+};
+
+
+// 🆕 Ruta para limpiar desde el frontend (opcional)
+router.post("/api/ordenos/cleanup", cleanupOrdenosUploads);
+
+// 🆕 Ejecutamos cleanup ANTES del upload real
+router.post(
+  "/api/ordenos/upload",
+  silentCleanupMiddleware,        // ← limpia antes de procesar los archivos
+  upload.array("files", 40),      // multer recibe archivos limpios
+  uploadAndClean                  // pipeline de limpieza y modelo
+);
 
 export default router;
