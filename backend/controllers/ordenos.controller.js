@@ -210,11 +210,12 @@ export const uploadAndClean = (req, res) => {
 
           const rows = XLSX.utils.sheet_to_json(sheet, { defval: null });
 
-          const alertLevels = ["naranja (medio-alto)", "rojo (alto)"];
-
           // 1) Filtrar por nivel_alarma y parsear fecha correctamente
           let alerts = rows
-            .filter((row) => alertLevels.includes(row["nivel_alarma"]))
+            .filter((row) => {
+              const total = Number(row["total_alertas"]);
+              return !isNaN(total) && total >= 5;
+            })
             .map((row) => {
               const rawFecha = row["fecha"];
               let fechaParsed = null;
@@ -249,20 +250,20 @@ export const uploadAndClean = (req, res) => {
             })
             .filter((row) => row._fecha instanceof Date && !isNaN(row._fecha.valueOf()));
 
-          // 2) Si hay fechas válidas → semana más reciente
-          if (alerts.length > 0) {
-            let mostRecentDate = alerts[0]._fecha;
-            for (const row of alerts) {
-              if (row._fecha > mostRecentDate) mostRecentDate = row._fecha;
+            // 2) Si hay fechas válidas → semana más reciente
+            if (alerts.length > 0) {
+              let mostRecentDate = alerts[0]._fecha;
+              for (const row of alerts) {
+                if (row._fecha > mostRecentDate) mostRecentDate = row._fecha;
+              }
+
+              const weekAgo = new Date(mostRecentDate);
+              weekAgo.setDate(weekAgo.getDate() - 6);
+
+              alerts = alerts.filter(
+                (row) => row._fecha >= weekAgo && row._fecha <= mostRecentDate
+              );
             }
-
-            const weekAgo = new Date(mostRecentDate);
-            weekAgo.setDate(weekAgo.getDate() - 6);
-
-            alerts = alerts.filter(
-              (row) => row._fecha >= weekAgo && row._fecha <= mostRecentDate
-            );
-          }
 
           // 3) Ordenar por probabilidad
           alerts.sort(
