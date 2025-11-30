@@ -4,7 +4,7 @@ import DropzoneBox from "../atoms/DropzoneBox";
 
 export default function Dropzone({ onFileSelected, onError }) {
   const [dragging, setDragging] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
 
   const inputRef = useRef(null);
 
@@ -29,10 +29,10 @@ export default function Dropzone({ onFileSelected, onError }) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const readFileContent = (file) => {
+  const readFileContent = (file, callback) => {
     const reader = new FileReader();
     reader.onload = (event) => {
-      onFileSelected(file, event.target.result);
+      callback(file, event.target.result);
     };
     reader.onerror = () => {
       onError("Error al leer el archivo");
@@ -40,39 +40,53 @@ export default function Dropzone({ onFileSelected, onError }) {
     reader.readAsText(file);
   };
 
-  const validateFile = (file) => {
-    if (!file) return;
+  const validateFiles = (files) => {
+    const validFiles = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const isCsvByName = file.name.toLowerCase().endsWith(".csv");
+      const isExcelByName =
+        file.name.toLowerCase().endsWith(".xlsx") ||
+        file.name.toLowerCase().endsWith(".xls") ||
+        file.name.toLowerCase().endsWith(".xlsm");
+      const isValidByType = VALID_MIMES.includes(file.type);
 
-    const isCsvByName = file.name.toLowerCase().endsWith(".csv");
-    const isExcelByName =
-      file.name.toLowerCase().endsWith(".xlsx") ||
-      file.name.toLowerCase().endsWith(".xls") ||
-      file.name.toLowerCase().endsWith(".xlsm");
-    const isValidByType = VALID_MIMES.includes(file.type);
-
-    if (!(isCsvByName || isExcelByName || isValidByType)) {
-      onError("El archivo debe ser un .csv o un archivo de Excel");
-      return;
+      if (!(isCsvByName || isExcelByName || isValidByType)) {
+        onError(
+          `El archivo ${file.name} debe ser un .csv o un archivo de Excel`
+        );
+        continue;
+      }
+      if (file.size > MAX_SIZE) {
+        onError(`El archivo ${file.name} supera los 10 MB permitidos`);
+        continue;
+      }
+      validFiles.push(file);
     }
-
-    if (file.size > MAX_SIZE) {
-      onError("El archivo supera los 10 MB permitidos");
-      return;
-    }
-
     onError("");
-    setSelectedFile(file);
-    readFileContent(file);
+    setSelectedFiles(validFiles);
+    // Leer el contenido de todos los archivos y pasarlos al callback
+    const results = [];
+    let processed = 0;
+    validFiles.forEach((file) => {
+      readFileContent(file, (f, content) => {
+        results.push({ file: f, content });
+        processed++;
+        if (processed === validFiles.length) {
+          onFileSelected(results);
+        }
+      });
+    });
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     setDragging(false);
-    validateFile(e.dataTransfer.files[0]);
+    validateFiles(e.dataTransfer.files);
   };
 
   const handleFileSelect = (e) => {
-    validateFile(e.target.files[0]);
+    validateFiles(e.target.files);
     e.target.value = null;
   };
 
@@ -87,7 +101,7 @@ export default function Dropzone({ onFileSelected, onError }) {
       }}
       onDragLeave={() => setDragging(false)}>
       {/* MENSAJE PRINCIPAL */}
-      {!selectedFile && (
+      {selectedFiles.length === 0 && (
         <Typography
           sx={{
             opacity: 0.7,
@@ -95,20 +109,21 @@ export default function Dropzone({ onFileSelected, onError }) {
             textAlign: "center",
             display: "flex",
           }}>
-          Arrastra o selecciona un archivo .csv o de Excel
+          Arrastra o selecciona uno o más archivos .csv o de Excel
         </Typography>
       )}
 
-      {/* ARCHIVO SELECCIONADO */}
-      {selectedFile && (
+      {/* ARCHIVOS SELECCIONADOS */}
+      {selectedFiles.length > 0 && (
         <>
-          <Typography sx={{ fontWeight: 600, color: "#333" }}>
-            📄 {selectedFile.name}
-          </Typography>
-
-          <Typography sx={{ opacity: 0.7, fontSize: "14px" }}>
-            {formatSize(selectedFile.size)}
-          </Typography>
+          {selectedFiles.map((file) => (
+            <Typography key={file.name} sx={{ fontWeight: 600, color: "#333" }}>
+              📄 {file.name}{" "}
+              <span style={{ fontWeight: 400, color: "#888", fontSize: 14 }}>
+                ({formatSize(file.size)})
+              </span>
+            </Typography>
+          ))}
         </>
       )}
 
@@ -117,6 +132,7 @@ export default function Dropzone({ onFileSelected, onError }) {
         ref={inputRef}
         type="file"
         accept=".csv,.xlsx,.xls,.xlsm,.xlsb,.xltm,.xlam"
+        multiple
         onChange={handleFileSelect}
         style={{ display: "none" }}
       />

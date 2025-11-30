@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import Logo from "../atoms/Logo";
@@ -9,18 +9,39 @@ import ResultsBox from "../atoms/ResultsBox";
 import Label from "../atoms/Label";
 import MilkProductionChart from "../atoms/MilkProductionChart";
 import { processCSVData } from "../../utils/csvProcessor";
+import MuiButton from "../atoms/MuiButton";
 
-export default function ResultsCard({ data }) {
+export default function ResultsCard() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const files = location.state?.files || [];
   const [error, setError] = useState("");
   const [chartData, setChartData] = useState({ labels: [], data: [] });
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
+
+  // Depuración: mostrar archivos recibidos
+  console.log("Archivos recibidos en ResultsCard:", files);
+
+  // Obtener archivo actual
+  const currentFile = files[currentFileIndex] || {};
+  const { file, content } = currentFile;
+  const fileName = file?.name || "";
+
+  // Obtener ID de la vaca desde el nombre del archivo
+  let cowId = "";
+  if (fileName) {
+    const match = fileName.match(/(\d+)/);
+    if (match) cowId = match[1];
+  }
+  // Depuración: mostrar nombre e ID detectado
+  console.log("Archivo actual:", fileName, "ID detectado:", cowId);
 
   useEffect(() => {
-    if (data) {
+    if (content) {
       try {
         setLoading(true);
-        const processed = processCSVData(data);
+        const processed = processCSVData(content);
         setChartData(processed);
         setLoading(false);
       } catch (err) {
@@ -29,9 +50,17 @@ export default function ResultsCard({ data }) {
         setLoading(false);
       }
     } else {
-      console.warn("No se recibió data en ResultsCard");
+      setChartData({ labels: [], data: [] });
+      setError("");
     }
-  }, [data]);
+  }, [content]);
+
+  const handleNext = () => {
+    setCurrentFileIndex((prev) => Math.min(prev + 1, files.length - 1));
+  };
+  const handlePrevious = () => {
+    setCurrentFileIndex((prev) => Math.max(prev - 1, 0));
+  };
 
   return (
     <Box
@@ -73,6 +102,15 @@ export default function ResultsCard({ data }) {
           textAlign: "center",
         }}>
         Detector de problemas vacunos
+      </Typography>
+
+      <Typography
+        sx={{
+          color: "#6D7850",
+          fontSize: 18,
+          textAlign: "center",
+        }}>
+        Id de la vaca analizada: <strong>{cowId || "Desconocido"}</strong>
       </Typography>
 
       <Box
@@ -118,6 +156,33 @@ export default function ResultsCard({ data }) {
           </ResultsBox>
         </Box>
       </Box>
+
+      {files.length > 1 && (
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+          <MuiButton
+            onClick={handlePrevious}
+            disabled={currentFileIndex === 0}
+            sx={{
+              minWidth: 90,
+              padding: "4px 10px",
+              fontSize: "0.8rem",
+              marginRight: 2,
+            }}>
+            <span style={{ fontSize: "0.85em" }}>Anterior vaca</span>
+          </MuiButton>
+          <MuiButton
+            onClick={handleNext}
+            disabled={currentFileIndex === files.length - 1}
+            sx={{
+              minWidth: 90,
+              padding: "4px 10px",
+              fontSize: "0.8rem",
+              marginLeft: 2,
+            }}>
+            <span style={{ fontSize: "0.85em" }}>Siguiente vaca</span>
+          </MuiButton>
+        </Box>
+      )}
 
       {error && (
         <Alert severity="error" sx={{ mt: 2 }}>

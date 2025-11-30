@@ -28,48 +28,11 @@ function UploadPage() {
     }
   };
 
-  const handleFileConfirmed = (file) => {
-    if (!file) return;
-
-    const reader = new FileReader();
-
-    if (file.name.endsWith(".xlsx")) {
-      reader.onload = async (event) => {
-        try {
-          const workbook = new ExcelJS.Workbook();
-          await workbook.xlsx.load(event.target.result);
-          const worksheet = workbook.worksheets[0];
-
-          let csvData = "";
-          worksheet.eachRow((row, rowNumber) => {
-            const rowValues = row.values.slice(1).map((value) => {
-              if (value instanceof Date) {
-                return value.toISOString().split("T")[0]; // Convertir fechas a formato YYYY-MM-DD
-              }
-              return value;
-            });
-            csvData += rowValues.join(",") + "\n";
-          });
-
-          navigate("/results", { state: { data: csvData } });
-        } catch (error) {
-          console.error("Error procesando el archivo .xlsx:", error);
-        }
-      };
-      reader.onerror = (error) => {
-        console.error("Error leyendo el archivo .xlsx:", error);
-      };
-      reader.readAsArrayBuffer(file);
-    } else {
-      reader.onload = (event) => {
-        const fileContent = event.target.result;
-        navigate("/results", { state: { data: fileContent } });
-      };
-      reader.onerror = (error) => {
-        console.error("Error leyendo el archivo:", error);
-      };
-      reader.readAsText(file);
-    }
+  // Ahora acepta un arreglo de archivos
+  const handleFileConfirmed = (files) => {
+    if (!files || files.length === 0) return;
+    // Navegar pasando el arreglo de archivos
+    navigate("/results", { state: { files } });
   };
 
   return (
