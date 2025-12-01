@@ -8,7 +8,7 @@ import GraphBox from "../atoms/GraphBox";
 import ResultsBox from "../atoms/ResultsBox";
 import Label from "../atoms/Label";
 import MilkProductionChart from "../atoms/MilkProductionChart";
-import { processCSVData } from "../../utils/csvProcessor";
+// import { processCSVData } from "../../utils/csvProcessor";
 import MuiButton from "../atoms/MuiButton";
 
 export default function ResultsCard() {
@@ -38,14 +38,22 @@ export default function ResultsCard() {
   console.log("Archivo actual:", fileName, "ID detectado:", cowId);
 
   useEffect(() => {
-    if (content) {
+    if (content && content.labels && content.data) {
+      setLoading(true);
+      setChartData({ labels: content.labels, data: content.data });
+      setError("");
+      setLoading(false);
+    } else if (content && typeof content === "string") {
+      // Fallback: si por alguna razón content es texto plano, intenta procesar como CSV
       try {
+        const { processCSVData } = require("../../utils/csvProcessor");
         setLoading(true);
         const processed = processCSVData(content);
         setChartData(processed);
+        setError("");
         setLoading(false);
       } catch (err) {
-        console.error("Error procesando CSV:", err);
+        setChartData({ labels: [], data: [] });
         setError("Error al procesar el archivo");
         setLoading(false);
       }
@@ -198,7 +206,7 @@ export default function ResultsCard() {
           cursor: "pointer",
         }}
         onClick={() => navigate("/")}>
-        Cargar otro archivo
+        Volver al inicio
       </Typography>
     </Box>
   );

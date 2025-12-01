@@ -1,30 +1,12 @@
-import { useState } from "react";
+
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import MuiButton from "../atoms/MuiButton";
 import Logo from "../atoms/Logo";
-import Dropzone from "../molecules/Dropzone";
 import Box from "@mui/material/Box";
 
-export default function UploadForm({ onUpload, processing, onFileConfirmed }) {
-  const [file, setFile] = useState(null);
-  const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    if (!file) {
-      setError("Carga un archivo para continuar");
-      return;
-    }
-
-    setError("");
-
-    if (onFileConfirmed) {
-      onFileConfirmed(file);
-    }
-  };
-
+export default function UploadForm({ onUpload, processing }) {
   return (
     <Box
       sx={{
@@ -52,19 +34,19 @@ export default function UploadForm({ onUpload, processing, onFileConfirmed }) {
         COWLYTICS
       </Typography>
 
-      {/* DROPZONE */}
       <Box sx={{ mt: 3, mb: 4 }}>
-        <Dropzone onFileSelected={setFile} onError={setError} />
+        <Typography sx={{ color: "#6D7850", textAlign: "center" }}>
+          Selecciona uno o varios archivos usando el botón de abajo
+        </Typography>
       </Box>
 
-      {/* ERRORES */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
-
-      <MuiButton onClick={handleSubmit}>SUBIR ARCHIVO</MuiButton>
+      <MuiButton
+        onClick={onUpload}
+        disabled={processing}
+        sx={{ width: "100%", fontSize: "1.1rem", padding: "12px 0" }}
+      >
+        {processing ? "Procesando..." : "SUBIR ARCHIVO"}
+      </MuiButton>
     </Box>
   );
 }

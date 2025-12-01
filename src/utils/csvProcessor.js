@@ -70,13 +70,15 @@ export const processCSVData = (csvText) => {
   );
 
   // LOG para depuración
-  console.log("Datos para gráfica:", {
+
+  /*console.log("Datos para gráfica:", {
     labels,
     data,
     dailyProduction,
     sortedDates,
     last7Days,
   });
+  */
 
   return { labels, data };
 };

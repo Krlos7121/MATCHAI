@@ -26,19 +26,31 @@ function createWindow() {
   }
 }
 
+
 // IPC Handlers para procesar archivos
+const { processAnyFile } = require("./utils/processCSVDataFromFile.cjs");
+const { dialog } = require("electron");
+
 ipcMain.handle("process-file", async (event, filePath) => {
   try {
-    // Leer archivo
-    const fileContent = fs.readFileSync(filePath, "utf8");
-
-    // Aquí procesarías con tu modelo
-    // const results = await yourModelProcess(fileContent);
-
-    return { success: true, data: fileContent };
+    const result = await processAnyFile(filePath);
+    return { success: true, data: result };
   } catch (error) {
     return { success: false, error: error.message };
   }
+});
+
+// Handler para select-file (diálogo nativo)
+ipcMain.handle("select-file", async (event) => {
+  const result = await dialog.showOpenDialog({
+    properties: ["openFile", "multiSelections"],
+    filters: [
+      { name: "Archivos de datos", extensions: ["csv", "xlsx", "xls", "xlsm", "xlsb", "xltm", "xlam"] },
+      { name: "Todos los archivos", extensions: ["*"] },
+    ],
+  });
+  if (result.canceled) return [];
+  return result.filePaths;
 });
 
 app.whenReady().then(() => {
