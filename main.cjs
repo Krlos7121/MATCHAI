@@ -1,7 +1,6 @@
 require("dotenv").config();
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
-const fs = require("fs");
 const { spawn } = require("child_process");
 
 function createWindow() {
@@ -15,13 +14,22 @@ function createWindow() {
     },
   });
 
-  if (process.env.NODE_ENV === "development") {
+  // 🔴 OLVIDA app.isPackaged por ahora, vamos a controlar TODO con NODE_ENV
+  const isDev = process.env.NODE_ENV === "development";
+
+  if (isDev) {
+    // Modo desarrollo: dev server de Vite
     mainWindow.loadURL("http://localhost:5173");
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, "dist", "index.html"));
+    // Modo “producción” (aunque lo ejecutes con `npx electron .`)
+    const indexPath = path.join(__dirname, "dist", "index.html");
+    console.log("Cargando index.html desde:", indexPath);
+    mainWindow.loadFile(indexPath);
+    mainWindow.webContents.openDevTools(); // para ver errores, luego lo puedes quitar
   }
 }
+
 
 /* ============================================================
    📌 IPC HANDLER: Procesar un archivo Excel mediante Python
@@ -30,24 +38,20 @@ ipcMain.handle("process-file", async (event, filePath) => {
   return new Promise((resolve, reject) => {
     const pythonScript = path.join(__dirname, "python", "process_xlsx.py");
 
-    // Ejecutar script Python
     const py = spawn("python", [pythonScript, filePath]);
 
     let output = "";
     let errorOutput = "";
 
-    // Recibir stdout → CSV generado por Python
     py.stdout.on("data", (data) => {
       output += data.toString();
     });
 
-    // Recibir stderr → errores del script
     py.stderr.on("data", (data) => {
       errorOutput += data.toString();
       console.error("[PY STDERR]", data.toString());
     });
 
-    // Cuando termina Python
     py.on("close", (code) => {
       if (code !== 0) {
         console.error("Python terminó con código", code, errorOutput);
@@ -57,7 +61,6 @@ ipcMain.handle("process-file", async (event, filePath) => {
         });
       }
 
-      // Éxito → regresamos el CSV como string
       resolve({
         success: true,
         data: output,
