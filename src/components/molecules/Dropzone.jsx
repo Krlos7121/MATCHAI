@@ -29,17 +29,6 @@ export default function Dropzone({ onFileSelected, onError }) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const readFileContent = (file, callback) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      callback(file, event.target.result);
-    };
-    reader.onerror = () => {
-      onError("Error al leer el archivo");
-    };
-    reader.readAsText(file);
-  };
-
   const validateFiles = (files) => {
     const validFiles = [];
     for (let i = 0; i < files.length; i++) {
@@ -63,20 +52,14 @@ export default function Dropzone({ onFileSelected, onError }) {
       }
       validFiles.push(file);
     }
+
     onError("");
     setSelectedFiles(validFiles);
-    // Leer el contenido de todos los archivos y pasarlos al callback
-    const results = [];
-    let processed = 0;
-    validFiles.forEach((file) => {
-      readFileContent(file, (f, content) => {
-        results.push({ file: f, content });
-        processed++;
-        if (processed === validFiles.length) {
-          onFileSelected(results);
-        }
-      });
-    });
+
+    // 👉 ahora mandamos directamente los File válidos
+    if (onFileSelected) {
+      onFileSelected(validFiles);
+    }
   };
 
   const handleDrop = (e) => {
@@ -99,7 +82,8 @@ export default function Dropzone({ onFileSelected, onError }) {
         e.preventDefault();
         setDragging(true);
       }}
-      onDragLeave={() => setDragging(false)}>
+      onDragLeave={() => setDragging(false)}
+    >
       {/* MENSAJE PRINCIPAL */}
       {selectedFiles.length === 0 && (
         <Typography
@@ -108,7 +92,8 @@ export default function Dropzone({ onFileSelected, onError }) {
             fontSize: "18px",
             textAlign: "center",
             display: "flex",
-          }}>
+          }}
+        >
           Arrastra o selecciona uno o más archivos .csv o de Excel
         </Typography>
       )}

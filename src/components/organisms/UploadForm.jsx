@@ -11,51 +11,53 @@ export default function UploadForm({ onFileConfirmed }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (!files || files.length === 0) {
-      setError("Carga al menos un archivo para continuar");
-      return;
+  if (!files || files.length === 0) {
+    setError("Carga al menos un archivo para continuar");
+    return;
+  }
+
+  setError("");
+  setLoading(true);
+
+  try {
+    console.log("FILES EN STATE:", files);
+
+    const formData = new FormData();
+    files.forEach((file, idx) => {
+      console.log("  -> file[", idx, "] es instancia de File?", file instanceof File);
+      formData.append("files", file);
+    });
+
+    const res = await fetch("http://localhost:4000/api/ordenos/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(
+        data.message || "Ocurrió un error al subir y procesar los archivos."
+      );
     }
 
-    setError("");
-    setLoading(true);
+    console.log("Respuesta del backend:", data);
 
-    try {
-      const formData = new FormData();
-
-      // El backend espera el campo "files" (upload.array("files", 20))
-      files.forEach((file) => {
-        formData.append("files", file);
-      });
-
-      const res = await fetch("http://localhost:4000/api/ordenos/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(
-          errData.message || "Ocurrió un error al subir y procesar los archivos."
-        );
-      }
-
-      const data = await res.json();
-      console.log("Respuesta del backend:", data);
-
-      if (onFileConfirmed) {
-        // ahora puedes usar esto para navegar a resultados, etc.
-        onFileConfirmed(data);
-      }
-    } catch (err) {
-      console.error(err);
-      setError(err.message || "Error inesperado al procesar los archivos.");
-    } finally {
-      setLoading(false);
+    if (onFileConfirmed) {
+      onFileConfirmed(data);
     }
-  };
+  } catch (err) {
+    console.error(err);
+    setError(err.message || "Error inesperado al procesar los archivos.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   return (
     <Box
@@ -89,16 +91,15 @@ export default function UploadForm({ onFileConfirmed }) {
       {/* DROPZONE */}
       <Box sx={{ mt: 3, mb: 4 }}>
         <Dropzone
-          // Asegúrate de que tu Dropzone permita múltiples archivos
-          // y te devuelva un array de File o un solo File.
           onFileSelected={(incoming) => {
-            // Soportar tanto un solo archivo como varios
             const arr = Array.isArray(incoming) ? incoming : [incoming];
-            setFiles(arr);
+            console.log("🔍 Files desde Dropzone:", arr);
+            setFiles(arr);   // arr es File[]
             setError("");
           }}
           onError={setError}
         />
+
       </Box>
 
       {error && (
