@@ -1,46 +1,51 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import UploadForm from "../organisms/UploadForm";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import Logo from "../atoms/Logo";
 import "../../styles/theme.css";
-import axios from "axios";
+import ExcelJS from "exceljs";
 
 function UploadPage() {
   const navigate = useNavigate();
   const [processing, setProcessing] = useState(false);
 
-  // 👇 Se ejecuta al cargar la página (primer render)
-  useEffect(() => {
-    const cleanupUploads = async () => {
-      try {
-        await axios.post("/api/ordenos/cleanup");
-        console.log("[FRONT] Carpeta uploads/ordeños limpiada antes de subir nuevos archivos.");
-      } catch (err) {
-        console.error("[FRONT] Error al limpiar uploads/ordeños:", err);
-        // No mostramos nada al usuario, solo log
+  const handleFileUpload = async (file) => {
+    setProcessing(true);
+    try {
+      // Usar Electron API en lugar de axios
+      const result = await window.electronAPI.processFile(file.path);
+
+      if (result.success) {
+        navigate("/results", { state: { data: result.data } });
       }
-    };
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setProcessing(false);
+    }
+  };
 
-    cleanupUploads();
-  }, []); // solo una vez al montar
-
-  const handleFileConfirmed = (backendResponse) => {
-    if (!backendResponse) return;
-
-    console.log("Respuesta del backend en UploadPage:", backendResponse);
-
-    navigate("/results", {
-      state: {
-        data: backendResponse,
-      },
-    });
+  // Ahora acepta un arreglo de archivos
+  const handleFileConfirmed = (files) => {
+    if (!files || files.length === 0) return;
+    // Navegar pasando el arreglo de archivos
+    navigate("/results", { state: { files } });
   };
 
   return (
     <div className="theme-bg">
+      {/* Logo superior */}
       <UploadForm
-        onFileConfirmed={handleFileConfirmed}
+        onUpload={handleFileUpload}
         processing={processing}
-      />
+        onFileConfirmed={handleFileConfirmed}>
+        <Box sx={{ position: "absolute", top: 25, left: 35 }}>
+          <Logo />
+        </Box>
+      </UploadForm>
     </div>
   );
 }

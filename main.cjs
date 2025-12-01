@@ -27,6 +27,7 @@ function createWindow() {
     console.log("Cargando index.html desde:", indexPath);
     mainWindow.loadFile(indexPath);
     mainWindow.webContents.openDevTools(); // para ver errores, luego lo puedes quitar
+
   }
 }
 
