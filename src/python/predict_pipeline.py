@@ -30,7 +30,8 @@ def main():
         temp_dir = os.path.join(os.path.dirname(__file__), '../../temp')
         rutas_csv = glob.glob(os.path.join(temp_dir, '*.csv'))
         if not rutas_csv:
-            print(json.dumps({"error": "No se encontraron archivos CSV en temp/"}))
+            print(json.dumps(
+                {"error": "No se encontraron archivos CSV en temp/"}))
             sys.exit(1)
     else:
         rutas_csv = sys.argv[1:]

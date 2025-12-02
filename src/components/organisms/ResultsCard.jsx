@@ -115,9 +115,10 @@ export default function ResultsCard() {
         // Si es un array, mostrar el último valor como predicción principal
         const arr = predResults[tempKey];
         const predFinal = arr.length > 0 ? arr[arr.length - 1] : null;
-        predText = predFinal !== null && predFinal !== undefined
-          ? `Predicción final del modelo: ${predFinal}`
-          : "Sin predicción disponible.";
+        predText =
+          predFinal !== null && predFinal !== undefined
+            ? `Predicción final del modelo: ${predFinal}`
+            : "Sin predicción disponible.";
         // Si quieres mostrar todo el array, descomenta:
         // predText += `\n(Todos los outputs: ${JSON.stringify(arr)})`;
       } else if (predResults[tempKey].error) {
