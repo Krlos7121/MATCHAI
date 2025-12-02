@@ -3,13 +3,31 @@
   "private": true,
   "version": "0.0.0",
   "main": "main.cjs",
+  "build": {
+    "appId": "com.matchai.Cowlytics",
+    "productName": "Cowlytics",
+    "files": [
+      "dist/**/*",
+      "main.cjs",
+      "preload.js",
+      "utils/**/*",
+      "src/assets/**/*"
+    ],
+    "mac": {
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "electron ."
+    "start": "electron .",
+    "build:electron": "electron-builder"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -55,6 +73,7 @@
     "@vitest/coverage-v8": "^3.1.1",
     "babel-plugin-react-compiler": "^1.0.0",
     "electron": "^39.2.3",
+    "electron-builder": "^26.0.12",
     "eslint": "^9.39.1",
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^7.0.1",

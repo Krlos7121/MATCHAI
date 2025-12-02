@@ -26,7 +26,6 @@ function createWindow() {
   }
 }
 
-
 // IPC Handlers para procesar archivos
 const { processAnyFile } = require("./utils/processCSVDataFromFile.cjs");
 const { dialog } = require("electron");
@@ -45,7 +44,10 @@ ipcMain.handle("select-file", async (event) => {
   const result = await dialog.showOpenDialog({
     properties: ["openFile", "multiSelections"],
     filters: [
-      { name: "Archivos de datos", extensions: ["csv", "xlsx", "xls", "xlsm", "xlsb", "xltm", "xlam"] },
+      {
+        name: "Archivos de datos",
+        extensions: ["csv", "xlsx", "xls", "xlsm", "xlsb", "xltm", "xlam"],
+      },
       { name: "Todos los archivos", extensions: ["*"] },
     ],
   });

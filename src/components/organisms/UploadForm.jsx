@@ -1,10 +1,8 @@
-
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import MuiButton from "../atoms/MuiButton";
 import Logo from "../atoms/Logo";
 import Box from "@mui/material/Box";
-
 
 export default function UploadForm({ onUpload, processing }) {
   return (
@@ -43,8 +41,7 @@ export default function UploadForm({ onUpload, processing }) {
       <MuiButton
         onClick={onUpload}
         disabled={processing}
-        sx={{ width: "100%", fontSize: "1.1rem", padding: "12px 0" }}
-      >
+        sx={{ width: "100%", fontSize: "1.1rem", padding: "12px 0" }}>
         {processing ? "Procesando..." : "SUBIR ARCHIVO"}
       </MuiButton>
     </Box>
