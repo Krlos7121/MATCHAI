@@ -19,9 +19,10 @@ export default function ResultsCard() {
   const [chartData, setChartData] = useState({ labels: [], data: [] });
   const [loading, setLoading] = useState(true);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [predResults, setPredResults] = useState({});
 
   // Depuración: mostrar archivos recibidos
-  console.log("Archivos recibidos en ResultsCard:", files);
+  // console.log("Archivos recibidos en ResultsCard:", files);
 
   // Obtener archivo actual
   const currentFile = files[currentFileIndex] || {};
@@ -35,10 +36,10 @@ export default function ResultsCard() {
     if (match) cowId = match[1];
   }
   // Depuración: mostrar nombre e ID detectado
-  console.log("Archivo actual:", fileName, "ID detectado:", cowId);
+  // console.log("Archivo actual:", fileName, "ID detectado:", cowId);
 
   useEffect(() => {
-    // Nuevo formato: content.dailyProduction y content.rows
+    // Procesar datos para la gráfica
     if (
       content &&
       content.dailyProduction &&
@@ -53,13 +54,11 @@ export default function ResultsCard() {
       setError("");
       setLoading(false);
     } else if (content && content.labels && content.data) {
-      // Compatibilidad con formato anterior
       setLoading(true);
       setChartData({ labels: content.labels, data: content.data });
       setError("");
       setLoading(false);
     } else if (content && typeof content === "string") {
-      // Fallback: si por alguna razón content es texto plano, intenta procesar como CSV
       try {
         const { processCSVData } = require("../../utils/csvProcessor");
         setLoading(true);
@@ -76,7 +75,25 @@ export default function ResultsCard() {
       setChartData({ labels: [], data: [] });
       setError("");
     }
+
+    // Ejecutar predicción solo una vez al montar
+    if (
+      Object.keys(predResults).length === 0 &&
+      window.electronAPI?.runPredictionPipeline
+    ) {
+      window.electronAPI.runPredictionPipeline().then((res) => {
+        if (res.success) setPredResults(res.data);
+        else setPredResults({ error: res.error });
+      });
+    }
+    // eslint-disable-next-line
   }, [content]);
+
+  const borrarTemp = async () => {
+    if (window.electronAPI?.clearTemp) {
+      await window.electronAPI.clearTemp();
+    }
+  };
 
   const handleNext = () => {
     setCurrentFileIndex((prev) => Math.min(prev + 1, files.length - 1));
@@ -84,6 +101,34 @@ export default function ResultsCard() {
   const handlePrevious = () => {
     setCurrentFileIndex((prev) => Math.max(prev - 1, 0));
   };
+
+  // Obtener predicción para el archivo actual y mostrarla de forma amigable
+  let predText = "Cargando predicción...";
+  if (fileName && predResults) {
+    const cowMatch = fileName.match(/(\d+)/);
+    const cowIdMatch = cowMatch ? cowMatch[1] : null;
+    const tempKey = cowIdMatch
+      ? Object.keys(predResults).find((k) => k.includes(cowIdMatch))
+      : null;
+    if (tempKey && predResults[tempKey]) {
+      if (Array.isArray(predResults[tempKey])) {
+        // Si es un array, mostrar el último valor como predicción principal
+        const arr = predResults[tempKey];
+        const predFinal = arr.length > 0 ? arr[arr.length - 1] : null;
+        predText = predFinal !== null && predFinal !== undefined
+          ? `Predicción final del modelo: ${predFinal}`
+          : "Sin predicción disponible.";
+        // Si quieres mostrar todo el array, descomenta:
+        // predText += `\n(Todos los outputs: ${JSON.stringify(arr)})`;
+      } else if (predResults[tempKey].error) {
+        predText = `Error al predecir: ${predResults[tempKey].error}`;
+      }
+    } else if (predResults.error) {
+      predText = `Error: ${predResults.error}`;
+    }
+  }
+  // Imprimir en consola el resultado mostrado
+  console.log("Resultado mostrado en UI:", predText);
 
   return (
     <Box
@@ -171,11 +216,7 @@ export default function ResultsCard() {
         <Box sx={{ flex: 1, paddingLeft: 2 }}>
           <ResultsBox>
             <Label>Resultados detallados:</Label>
-            <Label>
-              ✅ No hay indicios de mastitis para los próximos 3 días
-            </Label>
-            <Label>🚨 Baja producción en el cuarto TD</Label>
-            <Label>⚠️ Producción en descenso desde hace 2 días</Label>
+            <Label>{predText || "Cargando predicción..."}</Label>
           </ResultsBox>
         </Box>
       </Box>
@@ -220,7 +261,10 @@ export default function ResultsCard() {
           textAlign: "center",
           cursor: "pointer",
         }}
-        onClick={() => navigate("/")}>
+        onClick={async () => {
+          await borrarTemp();
+          navigate("/");
+        }}>
         Volver al inicio
       </Typography>
     </Box>

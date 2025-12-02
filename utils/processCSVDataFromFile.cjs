@@ -1,6 +1,32 @@
+// Ejemplo de uso para probar la exportación de CSV temporal
+if (require.main === module) {
+  const rutaOriginal = path.join(__dirname, "../1204.csv");
+  processCSVDataFromFile(rutaOriginal);
+  const tempCSVs = exportProcessedToTempCSVs([rutaOriginal]);
+  if (tempCSVs.length > 0) {
+    console.log("CSV temporal guardado en:", tempCSVs[0]);
+  } else {
+    console.log("No se generó ningún CSV temporal.");
+  }
+}
 const path = require("path");
 const ExcelJS = require("exceljs");
 const fs = require("fs");
+
+// Borrar carpeta temp y su contenido al inicio de la ejecución
+const tempDir = path.join(__dirname, "../temp");
+if (fs.existsSync(tempDir)) {
+  fs.readdirSync(tempDir).forEach((file) => {
+    const curPath = path.join(tempDir, file);
+    if (fs.lstatSync(curPath).isDirectory()) {
+      fs.rmSync(curPath, { recursive: true, force: true });
+    } else {
+      fs.unlinkSync(curPath);
+    }
+  });
+  // Opcional: eliminar la carpeta temp misma y volverla a crear
+  // fs.rmdirSync(tempDir);
+}
 
 // Caché en memoria para archivos preprocesados
 const preprocessedCache = {};
@@ -12,14 +38,28 @@ function processCSVDataFromFile(filePath) {
       "[PROCESADO] Resultado (cache):",
       JSON.stringify(preprocessedCache[filePath], null, 2)
     );
+    // Guardar CSV temporal y mostrar ruta
+    const tempCSVs = exportProcessedToTempCSVs([filePath]);
+    if (tempCSVs.length > 0) {
+      //console.log("[CACHE] CSV temporal guardado en:", tempCSVs[0]);
+    } else {
+      console.log("[CACHE] No se generó ningún CSV temporal.");
+    }
     return preprocessedCache[filePath];
   }
-  console.log("[PREPROCESO] Procesando CSV:", filePath);
+  // console.log("[PREPROCESO] Procesando CSV:", filePath);
   const csvText = fs.readFileSync(filePath, "utf-8");
   const { rows, dailyProduction } = processCSVText(csvText);
   const result = { rows, dailyProduction };
   preprocessedCache[filePath] = result;
-  console.log("[PROCESADO] Resultado:", JSON.stringify(result, null, 2));
+  //#console.log("[PROCESADO] Resultado:", JSON.stringify(result, null, 2));
+  // Guardar CSV temporal y mostrar ruta
+  const tempCSVs = exportProcessedToTempCSVs([filePath]);
+  if (tempCSVs.length > 0) {
+    console.log("[PROCESADO] CSV temporal guardado en:", tempCSVs[0]);
+  } else {
+    console.log("[PROCESADO] No se generó ningún CSV temporal.");
+  }
   return result;
 }
 
@@ -107,7 +147,7 @@ function processExcelDataFromFile(filePath) {
 }
 
 function processAnyFile(filePath) {
-  console.log("[PREPROCESO] Procesando archivo (any):", filePath);
+  // console.log("[PREPROCESO] Procesando archivo (any):", filePath);
   const ext = path.extname(filePath).toLowerCase();
   if (ext === ".csv") {
     return processCSVDataFromFile(filePath);
@@ -121,9 +161,11 @@ function processAnyFile(filePath) {
 }
 
 function processCSVText(csvText) {
-  const lines = csvText.trim().split("\n");
+  let lines = csvText.trim().split("\n");
   if (lines.length < 2)
     return { rows: [], dailyProduction: { labels: [], data: [] } };
+  // Eliminar la primera fila
+  lines = lines.slice(1);
   const dailyProduction = {};
   const rows = [];
   let headers = [];
@@ -138,16 +180,9 @@ function processCSVText(csvText) {
       headers = values.map((h) => h.trim());
       // Buscar posibles nombres de columna para fecha y producción
       const fechaCandidates = ["Hora de inicio", "Main", "Fecha", "Fecha/Hora"];
-      const prodCandidates = [
-        "Producción (kg)",
-        "",
-        "Produccion",
-        "Producción",
-        "Milk",
-        "Leche",
-      ];
       fechaKey = headers.find((h) => fechaCandidates.includes(h));
-      produccionKey = headers.find((h) => prodCandidates.includes(h));
+      // Buscar la columna exacta 'Producción (kg)'
+      produccionKey = headers.find((h) => h === "Producción (kg)");
       continue;
     }
     // Construir objeto fila
@@ -158,8 +193,16 @@ function processCSVText(csvText) {
     rows.push(obj);
     // Procesamiento de producción diaria robusto
     let fecha = obj[fechaKey]?.trim().split(" ")[0];
-    let produccion = obj[produccionKey];
-    // Si la producción no es válida, buscar el primer valor numérico en la fila (excepto fecha)
+    let produccion = null;
+    // 1. Si existe la columna exacta 'Producción (kg)', usarla
+    if (produccionKey && obj[produccionKey] !== undefined) {
+      produccion = obj[produccionKey];
+    }
+    // 2. Si no existe, usar la cuarta columna (índice 3) de la segunda fila (i === 1)
+    else if (i === 1 && values.length > 3) {
+      produccion = values[3];
+    }
+    // 3. Si tampoco, buscar el primer valor numérico en la fila (excepto fecha)
     if ((!produccion || isNaN(parseFloat(produccion))) && values.length > 1) {
       produccion = values.find(
         (v, idx) => idx !== headers.indexOf(fechaKey) && !isNaN(parseFloat(v))
@@ -203,8 +246,42 @@ function processCSVText(csvText) {
   return { rows, dailyProduction: prodSummary };
 }
 
+// Exporta los datos procesados en caché a archivos CSV temporales
+function exportProcessedToTempCSVs(filePaths) {
+  const tempDir = path.join(__dirname, "../temp");
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir);
+  }
+  const exportedFiles = [];
+  filePaths.forEach((filePath) => {
+    const cache = preprocessedCache[filePath];
+    if (!cache || !Array.isArray(cache.rows) || cache.rows.length === 0) {
+      console.warn(`[EXPORT] No hay datos procesados para: ${filePath}`);
+      return;
+    }
+    const headers = Object.keys(cache.rows[0]);
+    const tempFileName = `temp_${path.basename(
+      filePath,
+      path.extname(filePath)
+    )}_${Date.now()}.csv`;
+    const tempFilePath = path.join(tempDir, tempFileName);
+    const csvContent = [headers.join(",")]
+      .concat(
+        cache.rows.map((row) =>
+          headers.map((h) => (row[h] !== undefined ? row[h] : "")).join(",")
+        )
+      )
+      .join("\n");
+    fs.writeFileSync(tempFilePath, csvContent, "utf-8");
+    exportedFiles.push(tempFilePath);
+    //console.log(`[EXPORT] CSV temporal generado: ${tempFilePath}`);
+  });
+  return exportedFiles;
+}
+
 module.exports = {
   processCSVDataFromFile,
   processExcelDataFromFile,
   processAnyFile,
+  exportProcessedToTempCSVs,
 };
