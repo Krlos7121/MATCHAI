@@ -38,7 +38,17 @@ export default function ResultsCard() {
   console.log("Archivo actual:", fileName, "ID detectado:", cowId);
 
   useEffect(() => {
-    if (content && content.labels && content.data) {
+    // Nuevo formato: content.dailyProduction y content.rows
+    if (content && content.dailyProduction && content.dailyProduction.labels && content.dailyProduction.data) {
+      setLoading(true);
+      setChartData({
+        labels: content.dailyProduction.labels,
+        data: content.dailyProduction.data,
+      });
+      setError("");
+      setLoading(false);
+    } else if (content && content.labels && content.data) {
+      // Compatibilidad con formato anterior
       setLoading(true);
       setChartData({ labels: content.labels, data: content.data });
       setError("");
