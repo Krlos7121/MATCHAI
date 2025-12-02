@@ -138,7 +138,14 @@ function processCSVText(csvText) {
       headers = values.map((h) => h.trim());
       // Buscar posibles nombres de columna para fecha y producción
       const fechaCandidates = ["Hora de inicio", "Main", "Fecha", "Fecha/Hora"];
-      const prodCandidates = ["Producción (kg)", "", "Produccion", "Producción", "Milk", "Leche"];
+      const prodCandidates = [
+        "Producción (kg)",
+        "",
+        "Produccion",
+        "Producción",
+        "Milk",
+        "Leche",
+      ];
       fechaKey = headers.find((h) => fechaCandidates.includes(h));
       produccionKey = headers.find((h) => prodCandidates.includes(h));
       continue;
@@ -154,13 +161,18 @@ function processCSVText(csvText) {
     let produccion = obj[produccionKey];
     // Si la producción no es válida, buscar el primer valor numérico en la fila (excepto fecha)
     if ((!produccion || isNaN(parseFloat(produccion))) && values.length > 1) {
-      produccion = values.find((v, idx) => idx !== headers.indexOf(fechaKey) && !isNaN(parseFloat(v)));
+      produccion = values.find(
+        (v, idx) => idx !== headers.indexOf(fechaKey) && !isNaN(parseFloat(v))
+      );
     }
     produccion = parseFloat(produccion);
     if (fecha && fecha.includes("/")) {
       const [d, m, y] = fecha.split("/");
       if (d && m && y) {
-        fecha = `${y.padStart(4, "0")}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+        fecha = `${y.padStart(4, "0")}-${m.padStart(2, "0")}-${d.padStart(
+          2,
+          "0"
+        )}`;
       }
     }
     const testDate = new Date(fecha);

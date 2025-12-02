@@ -39,7 +39,12 @@ export default function ResultsCard() {
 
   useEffect(() => {
     // Nuevo formato: content.dailyProduction y content.rows
-    if (content && content.dailyProduction && content.dailyProduction.labels && content.dailyProduction.data) {
+    if (
+      content &&
+      content.dailyProduction &&
+      content.dailyProduction.labels &&
+      content.dailyProduction.data
+    ) {
       setLoading(true);
       setChartData({
         labels: content.dailyProduction.labels,
