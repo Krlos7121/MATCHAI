@@ -1,31 +1,28 @@
-// Ejemplo de uso para probar la exportación de CSV temporal
-if (require.main === module) {
-  const rutaOriginal = path.join(__dirname, "../1204.csv");
-  processCSVDataFromFile(rutaOriginal);
-  const tempCSVs = exportProcessedToTempCSVs([rutaOriginal]);
-  if (tempCSVs.length > 0) {
-    console.log("CSV temporal guardado en:", tempCSVs[0]);
-  } else {
-    console.log("No se generó ningún CSV temporal.");
-  }
-}
 const path = require("path");
 const ExcelJS = require("exceljs");
 const fs = require("fs");
 
-// Borrar carpeta temp y su contenido al inicio de la ejecución
-const tempDir = path.join(__dirname, "../temp");
-if (fs.existsSync(tempDir)) {
-  fs.readdirSync(tempDir).forEach((file) => {
-    const curPath = path.join(tempDir, file);
-    if (fs.lstatSync(curPath).isDirectory()) {
-      fs.rmSync(curPath, { recursive: true, force: true });
-    } else {
-      fs.unlinkSync(curPath);
-    }
-  });
-  // Opcional: eliminar la carpeta temp misma y volverla a crear
-  // fs.rmdirSync(tempDir);
+// ============================================
+// Rutas base configurables para producción
+// ============================================
+let BASE_PATH = path.join(__dirname, "..");
+
+// Función para configurar la ruta base (llamada desde main.cjs)
+function setBasePath(basePath) {
+  BASE_PATH = basePath;
+  console.log("[processCSVDataFromFile] BASE_PATH configurado a:", BASE_PATH);
+}
+
+function getUploadsDir() {
+  return path.join(BASE_PATH, "uploads");
+}
+
+function getTempDir() {
+  return path.join(BASE_PATH, "temp");
+}
+
+function getProcessedDir() {
+  return path.join(BASE_PATH, "processed");
 }
 
 // Caché en memoria para archivos preprocesados
@@ -229,9 +226,9 @@ function processCSVText(csvText) {
 
 // Exporta los datos procesados en caché a archivos CSV temporales
 function exportProcessedToTempCSVs(filePaths) {
-  const tempDir = path.join(__dirname, "../temp");
+  const tempDir = getTempDir();
   if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir);
+    fs.mkdirSync(tempDir, { recursive: true });
   }
   const exportedFiles = [];
   filePaths.forEach((filePath) => {
@@ -262,7 +259,7 @@ function exportProcessedToTempCSVs(filePaths) {
 
 // Copia archivos originales a la carpeta uploads/ para el pipeline Python
 function copyFilesToUploads(filePaths) {
-  const uploadsDir = path.join(__dirname, "../uploads");
+  const uploadsDir = getUploadsDir();
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
   }
@@ -283,7 +280,7 @@ function copyFilesToUploads(filePaths) {
 
 // Limpia la carpeta uploads/
 function clearUploads() {
-  const uploadsDir = path.join(__dirname, "../uploads");
+  const uploadsDir = getUploadsDir();
   if (fs.existsSync(uploadsDir)) {
     fs.readdirSync(uploadsDir).forEach((file) => {
       const curPath = path.join(uploadsDir, file);
@@ -299,7 +296,7 @@ function clearUploads() {
 
 // Limpia la carpeta temp/
 function clearTemp() {
-  const tempDir = path.join(__dirname, "../temp");
+  const tempDir = getTempDir();
   if (fs.existsSync(tempDir)) {
     fs.readdirSync(tempDir).forEach((file) => {
       const curPath = path.join(tempDir, file);
@@ -315,7 +312,7 @@ function clearTemp() {
 
 // Limpia la carpeta processed/
 function clearProcessed() {
-  const processedDir = path.join(__dirname, "../processed");
+  const processedDir = getProcessedDir();
   if (fs.existsSync(processedDir)) {
     fs.readdirSync(processedDir).forEach((file) => {
       const curPath = path.join(processedDir, file);
@@ -330,6 +327,7 @@ function clearProcessed() {
 }
 
 module.exports = {
+  setBasePath,
   processCSVDataFromFile,
   processExcelDataFromFile,
   processAnyFile,

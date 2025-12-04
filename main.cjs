@@ -42,20 +42,46 @@ function getScriptsPath() {
   return path.join(__dirname, "src", "python");
 }
 
+// Obtener ruta base para datos de la app (uploads, processed, temp)
+function getAppDataPath() {
+  if (app.isPackaged) {
+    // En producción, usar userData (AppData/Roaming/Cowlytics en Windows)
+    return app.getPath("userData");
+  }
+  // En desarrollo, usar el directorio del proyecto
+  return __dirname;
+}
+
+// Obtener ruta de modelos
+function getModelsPath() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, "models");
+  }
+  return path.join(__dirname, "src", "models");
+}
+
 // Handler para ejecutar el pipeline de predicción de mastitis (predict_pipeline.py)
 ipcMain.handle("run-prediction-pipeline", async () => {
   return new Promise((resolve) => {
     const pythonExe = getPythonExecutable();
     const scriptPath = path.join(getScriptsPath(), "predict_pipeline.py");
-    const processedDir = path.join(__dirname, "processed");
+    const processedDir = path.join(getAppDataPath(), "processed");
+    const modelsDir = getModelsPath();
 
     console.log("[PREDICTION] Python:", pythonExe);
     console.log("[PREDICTION] Script:", scriptPath);
+    console.log("[PREDICTION] Processed dir:", processedDir);
+    console.log("[PREDICTION] Models dir:", modelsDir);
 
-    const pythonProcess = spawn(pythonExe, [scriptPath], {
-      cwd: path.dirname(scriptPath),
-      env: { ...process.env, PYTHONIOENCODING: "utf-8" },
-    });
+    // Pasar las rutas como argumentos al script
+    const pythonProcess = spawn(
+      pythonExe,
+      [scriptPath, "--processed-dir", processedDir, "--models-dir", modelsDir],
+      {
+        cwd: path.dirname(scriptPath),
+        env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+      }
+    );
 
     let stdout = "";
     let stderr = "";
@@ -174,6 +200,7 @@ function createWindow() {
 
 // IPC Handlers para procesar archivos
 const {
+  setBasePath,
   processAnyFile,
   copyFilesToUploads,
   clearUploads,
@@ -270,11 +297,19 @@ ipcMain.handle("run-processing-pipeline", async () => {
   return new Promise((resolve) => {
     const pythonExe = getPythonExecutable();
     const scriptPath = path.join(getScriptsPath(), "pipeline_ordenos.py");
-    const uploadsDir = path.join(__dirname, "uploads");
-    const outputDir = path.join(__dirname, "processed");
+    const appDataPath = getAppDataPath();
+    const uploadsDir = path.join(appDataPath, "uploads");
+    const outputDir = path.join(appDataPath, "processed");
+
+    // Crear directorios si no existen
+    if (!fs.existsSync(uploadsDir))
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
     console.log("[PROCESSING] Python:", pythonExe);
     console.log("[PROCESSING] Script:", scriptPath);
+    console.log("[PROCESSING] Uploads dir:", uploadsDir);
+    console.log("[PROCESSING] Output dir:", outputDir);
 
     const pythonProcess = spawn(
       pythonExe,
@@ -335,9 +370,15 @@ ipcMain.handle("run-processing-pipeline", async () => {
 });
 
 app.whenReady().then(() => {
-  // Limpiar uploads/ y processed/ al iniciar la app
+  // Configurar la ruta base para uploads, temp, processed según el entorno
+  setBasePath(getAppDataPath());
+
+  // Limpiar uploads/, temp/ y processed/ al iniciar la app
   try {
     clearUploads();
+  } catch (e) {}
+  try {
+    clearTemp();
   } catch (e) {}
   try {
     clearProcessed();

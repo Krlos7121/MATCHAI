@@ -134,35 +134,55 @@ def nivel_alarma(prob):
         return "Rojo"
 
 
+def parse_args():
+    """Parsea argumentos de línea de comandos."""
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="Pipeline de predicción de mastitis")
+    parser.add_argument("--processed-dir", type=str, default=None,
+                        help="Directorio con archivos de features procesados")
+    parser.add_argument("--models-dir", type=str, default=None,
+                        help="Directorio con los modelos (.joblib)")
+    parser.add_argument("csv_files", nargs="*",
+                        help="Archivos CSV de features (opcional)")
+    return parser.parse_args()
+
+
 def main():
     print("[DEBUG] Iniciando predict_pipeline.py (versión C2)", file=sys.stderr)
 
-    # Ruta del modelo XGBoost - buscar en múltiples ubicaciones
+    args = parse_args()
     base_dir = os.path.dirname(__file__)
 
-    # Posibles ubicaciones del modelo (desarrollo vs producción)
-    possible_model_paths = [
-        # Desarrollo
-        os.path.join(base_dir, "../models/modelo_xgb_mastitis.joblib"),
-        # Producción
-        os.path.join(
-            base_dir, "../../resources/models/modelo_xgb_mastitis.joblib"),
-        # Alternativo
-        os.path.join(base_dir, "../../../models/modelo_xgb_mastitis.joblib"),
-    ]
+    # Determinar directorio de modelos
+    if args.models_dir:
+        models_dir = args.models_dir
+        modelo_path = os.path.join(models_dir, "modelo_xgb_mastitis.joblib")
+        print(
+            f"[DEBUG] Usando models_dir desde argumento: {models_dir}", file=sys.stderr)
+    else:
+        # Buscar en múltiples ubicaciones (desarrollo vs producción)
+        possible_model_paths = [
+            # Desarrollo
+            os.path.join(base_dir, "../models/modelo_xgb_mastitis.joblib"),
+            # Producción
+            os.path.join(
+                base_dir, "../../resources/models/modelo_xgb_mastitis.joblib"),
+            # Alternativo
+            os.path.join(
+                base_dir, "../../../models/modelo_xgb_mastitis.joblib"),
+        ]
 
-    modelo_path = None
-    for p in possible_model_paths:
-        if os.path.exists(p):
-            modelo_path = p
-            break
+        modelo_path = None
+        for p in possible_model_paths:
+            if os.path.exists(p):
+                modelo_path = p
+                break
 
-    if not modelo_path:
-        # Fallback para error descriptivo
-        modelo_path = possible_model_paths[0]
+        if not modelo_path:
+            modelo_path = possible_model_paths[0]
 
-    # Directorio de modelos F1
-    models_dir = os.path.dirname(modelo_path)
+        models_dir = os.path.dirname(modelo_path)
 
     # Cargar modelo XGBoost instantáneo
     try:
@@ -183,25 +203,31 @@ def main():
         print(
             f"[DEBUG] Total modelos F1 cargados: {len(modelos_f1)}", file=sys.stderr)
 
-    # Buscar archivos de features en processed/
-    if len(sys.argv) < 2:
+    # Determinar directorio de processed
+    if args.processed_dir:
+        processed_dir = args.processed_dir
+        print(
+            f"[DEBUG] Usando processed_dir desde argumento: {processed_dir}", file=sys.stderr)
+    else:
         processed_dir = os.path.join(base_dir, '../../processed')
+
+    # Buscar archivos de features
+    if args.csv_files:
+        rutas_csv = args.csv_files
+        print(
+            f"[DEBUG] CSVs pasados como argumentos: {rutas_csv}", file=sys.stderr)
+    else:
         rutas_csv = glob.glob(os.path.join(
             processed_dir, 'vaca_*_features.csv'))
-
         print(f"[DEBUG] Buscando CSVs en: {processed_dir}", file=sys.stderr)
         print(f"[DEBUG] CSVs encontrados: {rutas_csv}", file=sys.stderr)
 
-        if not rutas_csv:
-            print(
-                f"[ERROR] No se encontraron archivos de features en {processed_dir}", file=sys.stderr)
-            print(json.dumps(
-                {"error": "No se encontraron archivos de features en processed/"}))
-            sys.exit(1)
-    else:
-        rutas_csv = sys.argv[1:]
+    if not rutas_csv:
         print(
-            f"[DEBUG] CSVs pasados como argumentos: {rutas_csv}", file=sys.stderr)
+            f"[ERROR] No se encontraron archivos de features en {processed_dir}", file=sys.stderr)
+        print(json.dumps(
+            {"error": f"No se encontraron archivos de features en {processed_dir}"}))
+        sys.exit(1)
 
     vacas_resultados = {}
     total_registros = 0
