@@ -4,13 +4,58 @@ const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
 
+// ============================================
+// Función para obtener el ejecutable de Python
+// ============================================
+function getPythonExecutable() {
+  // En producción (empaquetado), buscar Python embebido
+  const isPackaged = app.isPackaged;
+
+  if (process.platform === "win32") {
+    // Windows: usar Python embebido
+    let embeddedPython;
+    if (isPackaged) {
+      // En producción, está en resources
+      embeddedPython = path.join(process.resourcesPath, "python", "python.exe");
+    } else {
+      // En desarrollo, está en la raíz del proyecto
+      embeddedPython = path.join(__dirname, "python", "python.exe");
+    }
+
+    if (fs.existsSync(embeddedPython)) {
+      console.log("[PYTHON] Usando Python embebido:", embeddedPython);
+      return embeddedPython;
+    }
+  }
+
+  // macOS/Linux o fallback: usar Python del sistema
+  const systemPython = process.platform === "win32" ? "python" : "python3";
+  console.log("[PYTHON] Usando Python del sistema:", systemPython);
+  return systemPython;
+}
+
+// Obtener ruta base para scripts Python
+function getScriptsPath() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, "python");
+  }
+  return path.join(__dirname, "src", "python");
+}
+
 // Handler para ejecutar el pipeline de predicción de mastitis (predict_pipeline.py)
 ipcMain.handle("run-prediction-pipeline", async () => {
   return new Promise((resolve) => {
-    const scriptPath = path.join(__dirname, "src/python/predict_pipeline.py");
+    const pythonExe = getPythonExecutable();
+    const scriptPath = path.join(getScriptsPath(), "predict_pipeline.py");
     const processedDir = path.join(__dirname, "processed");
 
-    const pythonProcess = spawn("python3", [scriptPath]);
+    console.log("[PREDICTION] Python:", pythonExe);
+    console.log("[PREDICTION] Script:", scriptPath);
+
+    const pythonProcess = spawn(pythonExe, [scriptPath], {
+      cwd: path.dirname(scriptPath),
+      env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+    });
 
     let stdout = "";
     let stderr = "";
@@ -223,18 +268,29 @@ ipcMain.handle("save-file", async (event, { defaultName, content }) => {
 // Handler para ejecutar el pipeline de procesamiento avanzado (pipeline_ordenos.py)
 ipcMain.handle("run-processing-pipeline", async () => {
   return new Promise((resolve) => {
-    const scriptPath = path.join(__dirname, "src/python/pipeline_ordenos.py");
+    const pythonExe = getPythonExecutable();
+    const scriptPath = path.join(getScriptsPath(), "pipeline_ordenos.py");
     const uploadsDir = path.join(__dirname, "uploads");
     const outputDir = path.join(__dirname, "processed");
 
-    const pythonProcess = spawn("python3", [
-      scriptPath,
-      "--input-dir",
-      uploadsDir,
-      "--output-dir",
-      outputDir,
-      "--json-output",
-    ]);
+    console.log("[PROCESSING] Python:", pythonExe);
+    console.log("[PROCESSING] Script:", scriptPath);
+
+    const pythonProcess = spawn(
+      pythonExe,
+      [
+        scriptPath,
+        "--input-dir",
+        uploadsDir,
+        "--output-dir",
+        outputDir,
+        "--json-output",
+      ],
+      {
+        cwd: path.dirname(scriptPath),
+        env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+      }
+    );
 
     let stdout = "";
     let stderr = "";

@@ -1,14 +1,65 @@
 {
-  "name": "matchai",
+  "name": "cowlytics",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "main": "main.cjs",
   "type": "module",
+  "build": {
+    "appId": "com.cowlytics.app",
+    "productName": "Cowlytics",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "main.cjs",
+      "preload.js",
+      "src/python/**/*",
+      "src/models/**/*",
+      "utils/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "python",
+        "to": "python",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "src/python",
+        "to": "python",
+        "filter": [
+          "**/*.py"
+        ]
+      },
+      {
+        "from": "src/models",
+        "to": "models",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "public/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "public/icon.ico",
+      "uninstallerIcon": "public/icon.ico"
+    }
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "dist:win": "npm run build && electron-builder --win --x64",
     "start": "electron ."
   },
   "dependencies": {
@@ -55,6 +106,7 @@
     "@vitest/coverage-v8": "^3.1.1",
     "babel-plugin-react-compiler": "^1.0.0",
     "electron": "^39.2.3",
+    "electron-builder": "^26.0.12",
     "eslint": "^9.39.1",
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^7.0.1",

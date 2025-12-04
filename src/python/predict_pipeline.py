@@ -137,11 +137,32 @@ def nivel_alarma(prob):
 def main():
     print("[DEBUG] Iniciando predict_pipeline.py (versión C2)", file=sys.stderr)
 
-    # Ruta del modelo XGBoost
+    # Ruta del modelo XGBoost - buscar en múltiples ubicaciones
     base_dir = os.path.dirname(__file__)
-    modelo_path = os.path.join(
-        base_dir, "../models/modelo_xgb_mastitis.joblib")
-    models_dir = os.path.join(base_dir, "../models")
+
+    # Posibles ubicaciones del modelo (desarrollo vs producción)
+    possible_model_paths = [
+        # Desarrollo
+        os.path.join(base_dir, "../models/modelo_xgb_mastitis.joblib"),
+        # Producción
+        os.path.join(
+            base_dir, "../../resources/models/modelo_xgb_mastitis.joblib"),
+        # Alternativo
+        os.path.join(base_dir, "../../../models/modelo_xgb_mastitis.joblib"),
+    ]
+
+    modelo_path = None
+    for p in possible_model_paths:
+        if os.path.exists(p):
+            modelo_path = p
+            break
+
+    if not modelo_path:
+        # Fallback para error descriptivo
+        modelo_path = possible_model_paths[0]
+
+    # Directorio de modelos F1
+    models_dir = os.path.dirname(modelo_path)
 
     # Cargar modelo XGBoost instantáneo
     try:
