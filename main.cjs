@@ -282,16 +282,10 @@ app.whenReady().then(() => {
   // Limpiar uploads/ y processed/ al iniciar la app
   try {
     clearUploads();
-    console.log("[INIT] uploads/ limpiada al iniciar la app");
-  } catch (e) {
-    console.warn("[INIT] No se pudo limpiar uploads/ al iniciar:", e.message);
-  }
+  } catch (e) {}
   try {
     clearProcessed();
-    console.log("[INIT] processed/ limpiada al iniciar la app");
-  } catch (e) {
-    console.warn("[INIT] No se pudo limpiar processed/ al iniciar:", e.message);
-  }
+  } catch (e) {}
   createWindow();
 
   app.on("activate", () => {
