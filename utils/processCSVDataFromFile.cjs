@@ -42,7 +42,7 @@ function processCSVDataFromFile(filePath) {
     }
     return preprocessedCache[filePath];
   }
-  // console.log("[PREPROCESO] Procesando CSV:", filePath);
+
   const csvText = fs.readFileSync(filePath, "utf-8");
   const { rows, dailyProduction } = processCSVText(csvText);
   const result = { rows, dailyProduction };
@@ -55,7 +55,6 @@ function processExcelDataFromFile(filePath) {
   if (preprocessedCache[filePath]) {
     return Promise.resolve(preprocessedCache[filePath]);
   }
-  console.log("[PREPROCESO] Procesando Excel:", filePath);
   return new Promise(async (resolve, reject) => {
     try {
       const workbook = new ExcelJS.Workbook();
@@ -130,7 +129,6 @@ function processExcelDataFromFile(filePath) {
 }
 
 function processAnyFile(filePath) {
-  // console.log("[PREPROCESO] Procesando archivo (any):", filePath);
   const ext = path.extname(filePath).toLowerCase();
   if (ext === ".csv") {
     return processCSVDataFromFile(filePath);

@@ -399,7 +399,8 @@ export default function ResultsCard() {
         </Box>
       </PopUp>
 
-      <Typography
+      <Box
+        component="div"
         sx={{
           color: "#6D7850",
           fontSize: 14,
@@ -457,7 +458,7 @@ export default function ResultsCard() {
             </Select>
           </FormControl>
         )}
-      </Typography>
+      </Box>
 
       <Box
         sx={{
