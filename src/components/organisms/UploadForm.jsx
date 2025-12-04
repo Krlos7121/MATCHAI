@@ -1,9 +1,8 @@
-import { useState } from "react";
+
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import MuiButton from "../atoms/MuiButton";
 import Logo from "../atoms/Logo";
-import Dropzone from "../molecules/Dropzone";
 import Box from "@mui/material/Box";
 
 export default function UploadForm({ onFileConfirmed }) {
@@ -57,6 +56,7 @@ export default function UploadForm({ onFileConfirmed }) {
     }
   };
 
+export default function UploadForm({ onUpload, processing }) {
   return (
     <Box
       sx={{
@@ -86,7 +86,6 @@ export default function UploadForm({ onFileConfirmed }) {
         COWLYTICS
       </Typography>
 
-      {/* DROPZONE */}
       <Box sx={{ mt: 3, mb: 4 }}>
         <Dropzone
           // Asegúrate de que tu Dropzone permita múltiples archivos

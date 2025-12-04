@@ -140,6 +140,7 @@ export default function Dropzone({ onFileSelected, onError }) {
         type="file"
         multiple
         accept=".csv,.xlsx,.xls,.xlsm,.xlsb,.xltm,.xlam"
+        multiple
         onChange={handleFileSelect}
         style={{ display: "none" }}
       />

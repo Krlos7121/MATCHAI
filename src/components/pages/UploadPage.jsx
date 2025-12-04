@@ -7,6 +7,7 @@ import axios from "axios";
 function UploadPage() {
   const navigate = useNavigate();
   const [processing, setProcessing] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
 
   // 👇 Se ejecuta al cargar la página (primer render)
   useEffect(() => {
