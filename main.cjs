@@ -4,126 +4,6 @@ const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
 
-// ============================================
-// Función para obtener el ejecutable de Python
-// ============================================
-function getPythonExecutable() {
-  // En producción (empaquetado), buscar Python embebido
-  const isPackaged = app.isPackaged;
-
-  if (process.platform === "win32") {
-    // Windows: usar Python embebido
-    let embeddedPython;
-    if (isPackaged) {
-      // En producción, está en resources
-      embeddedPython = path.join(process.resourcesPath, "python", "python.exe");
-    } else {
-      // En desarrollo, está en la raíz del proyecto
-      embeddedPython = path.join(__dirname, "python", "python.exe");
-    }
-
-    if (fs.existsSync(embeddedPython)) {
-      console.log("[PYTHON] Usando Python embebido:", embeddedPython);
-      return embeddedPython;
-    }
-  }
-
-  // macOS/Linux o fallback: usar Python del sistema
-  const systemPython = process.platform === "win32" ? "python" : "python3";
-  console.log("[PYTHON] Usando Python del sistema:", systemPython);
-  return systemPython;
-}
-
-// Obtener ruta base para scripts Python
-function getScriptsPath() {
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, "python");
-  }
-  return path.join(__dirname, "src", "python");
-}
-
-// Obtener ruta base para datos de la app (uploads, processed, temp)
-function getAppDataPath() {
-  if (app.isPackaged) {
-    // En producción, usar userData (AppData/Roaming/Cowlytics en Windows)
-    return app.getPath("userData");
-  }
-  // En desarrollo, usar el directorio del proyecto
-  return __dirname;
-}
-
-// Obtener ruta de modelos
-function getModelsPath() {
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, "models");
-  }
-  return path.join(__dirname, "src", "models");
-}
-
-// Handler para ejecutar el pipeline de predicción de mastitis (predict_pipeline.py)
-ipcMain.handle("run-prediction-pipeline", async () => {
-  return new Promise((resolve) => {
-    const pythonExe = getPythonExecutable();
-    const scriptPath = path.join(getScriptsPath(), "predict_pipeline.py");
-    const processedDir = path.join(getAppDataPath(), "processed");
-    const modelsDir = getModelsPath();
-
-    console.log("[PREDICTION] Python:", pythonExe);
-    console.log("[PREDICTION] Script:", scriptPath);
-    console.log("[PREDICTION] Processed dir:", processedDir);
-    console.log("[PREDICTION] Models dir:", modelsDir);
-
-    // Pasar las rutas como argumentos al script
-    const pythonProcess = spawn(
-      pythonExe,
-      [scriptPath, "--processed-dir", processedDir, "--models-dir", modelsDir],
-      {
-        cwd: path.dirname(scriptPath),
-        env: { ...process.env, PYTHONIOENCODING: "utf-8" },
-      }
-    );
-
-    let stdout = "";
-    let stderr = "";
-
-    pythonProcess.stdout.on("data", (data) => {
-      stdout += data.toString();
-    });
-
-    pythonProcess.stderr.on("data", (data) => {
-      stderr += data.toString();
-    });
-
-    pythonProcess.on("close", (code) => {
-      if (code === 0) {
-        try {
-          const result = JSON.parse(stdout);
-          resolve({ success: true, data: result });
-        } catch (e) {
-          resolve({
-            success: false,
-            error: "Error al parsear la salida del modelo: " + e.message,
-            stdout,
-            stderr,
-          });
-        }
-      } else {
-        resolve({
-          success: false,
-          error: stderr || "Error al ejecutar el pipeline de predicción",
-        });
-      }
-    });
-
-    pythonProcess.on("error", (err) => {
-      resolve({
-        success: false,
-        error: "No se pudo iniciar el pipeline de predicción: " + err.message,
-      });
-    });
-  });
-});
-
 function createWindow() {
   const mainWindow = new BrowserWindow({
     fullscreen: true,
@@ -198,177 +78,52 @@ function createWindow() {
   );
 }
 
-// IPC Handlers para procesar archivos
-const {
-  setBasePath,
-  processAnyFile,
-  copyFilesToUploads,
-  clearUploads,
-  clearTemp,
-  clearProcessed,
-} = require("./utils/processCSVDataFromFile.cjs");
-const { dialog } = require("electron");
-
+/* ============================================================
+   📌 IPC HANDLER: Procesar un archivo Excel mediante Python
+   ============================================================ */
 ipcMain.handle("process-file", async (event, filePath) => {
-  try {
-    const result = await processAnyFile(filePath);
-    return { success: true, data: result };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-});
+  return new Promise((resolve, reject) => {
+    const pythonScript = path.join(__dirname, "python", "process_xlsx.py");
 
-// Handler para select-file (diálogo nativo)
-ipcMain.handle("select-file", async (event) => {
-  const result = await dialog.showOpenDialog({
-    properties: ["openFile", "multiSelections"],
-    filters: [
-      {
-        name: "Archivos de datos",
-        extensions: ["csv", "xlsx", "xls", "xlsm", "xlsb", "xltm", "xlam"],
-      },
-      { name: "Todos los archivos", extensions: ["*"] },
-    ],
-  });
-  if (result.canceled) return [];
-  return result.filePaths;
-});
+    // Ejecutar script Python
+    const py = spawn("python", [pythonScript, filePath]);
 
-// Handler para copiar archivos a uploads/
-ipcMain.handle("copy-to-uploads", async (event, filePaths) => {
-  try {
-    const copiedFiles = copyFilesToUploads(filePaths);
-    return { success: true, files: copiedFiles };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-});
+    let output = "";
+    let errorOutput = "";
 
-// Handler para limpiar uploads/
-ipcMain.handle("clear-uploads", async () => {
-  try {
-    clearUploads();
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle("clear-temp", async () => {
-  try {
-    clearTemp();
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle("clear-processed", async () => {
-  try {
-    clearProcessed();
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-});
-
-// Handler para guardar archivo con diálogo nativo
-ipcMain.handle("save-file", async (event, { defaultName, content }) => {
-  try {
-    const result = await dialog.showSaveDialog({
-      defaultPath: defaultName,
-      filters: [
-        { name: "Archivos CSV", extensions: ["csv"] },
-        { name: "Todos los archivos", extensions: ["*"] },
-      ],
-    });
-    if (result.canceled || !result.filePath) {
-      return { success: false, canceled: true };
-    }
-    fs.writeFileSync(result.filePath, content, "utf-8");
-    return { success: true, filePath: result.filePath };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-});
-
-// Handler para ejecutar el pipeline de procesamiento avanzado (pipeline_ordenos.py)
-ipcMain.handle("run-processing-pipeline", async () => {
-  return new Promise((resolve) => {
-    const pythonExe = getPythonExecutable();
-    const scriptPath = path.join(getScriptsPath(), "pipeline_ordenos.py");
-    const appDataPath = getAppDataPath();
-    const uploadsDir = path.join(appDataPath, "uploads");
-    const outputDir = path.join(appDataPath, "processed");
-
-    // Crear directorios si no existen
-    if (!fs.existsSync(uploadsDir))
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
-
-    console.log("[PROCESSING] Python:", pythonExe);
-    console.log("[PROCESSING] Script:", scriptPath);
-    console.log("[PROCESSING] Uploads dir:", uploadsDir);
-    console.log("[PROCESSING] Output dir:", outputDir);
-
-    const pythonProcess = spawn(
-      pythonExe,
-      [
-        scriptPath,
-        "--input-dir",
-        uploadsDir,
-        "--output-dir",
-        outputDir,
-        "--json-output",
-      ],
-      {
-        cwd: path.dirname(scriptPath),
-        env: { ...process.env, PYTHONIOENCODING: "utf-8" },
-      }
-    );
-
-    let stdout = "";
-    let stderr = "";
-
-    pythonProcess.stdout.on("data", (data) => {
-      stdout += data.toString();
+    // Recibir stdout → CSV generado por Python
+    py.stdout.on("data", (data) => {
+      output += data.toString();
     });
 
-    pythonProcess.stderr.on("data", (data) => {
-      stderr += data.toString();
-      //console.log("[PIPELINE STDERR]", data.toString());
+    // Recibir stderr → errores del script
+    py.stderr.on("data", (data) => {
+      errorOutput += data.toString();
+      console.error("[PY STDERR]", data.toString());
     });
 
-    pythonProcess.on("close", (code) => {
-      if (code === 0) {
-        try {
-          const result = JSON.parse(stdout);
-          resolve({ success: true, data: result });
-        } catch (e) {
-          resolve({
-            success: false,
-            error: "Error al parsear la salida del pipeline: " + e.message,
-            stdout,
-            stderr,
-          });
-        }
-      } else {
-        resolve({
+    // Cuando termina Python
+    py.on("close", (code) => {
+      if (code !== 0) {
+        console.error("Python terminó con código", code, errorOutput);
+        return resolve({
           success: false,
-          error: stderr || "Error al ejecutar el pipeline de procesamiento",
+          error: "Error al procesar archivo en Python",
         });
       }
-    });
 
-    pythonProcess.on("error", (err) => {
+      // Éxito → regresamos el CSV como string
       resolve({
-        success: false,
-        error: "No se pudo iniciar el pipeline: " + err.message,
+        success: true,
+        data: output,
       });
     });
   });
 });
 
+/* ============================================================
+   🌟 Electron Lifecycle
+   ============================================================ */
 app.whenReady().then(() => {
   // Configurar la ruta base para uploads, temp, processed según el entorno
   setBasePath(getAppDataPath());

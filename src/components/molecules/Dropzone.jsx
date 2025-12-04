@@ -8,19 +8,10 @@ export default function Dropzone({ onFileSelected, onError }) {
 
   const inputRef = useRef(null);
 
-  const MAX_SIZE = 10 * 1024 * 1024;
+  const MAX_SIZE = 10 * 1024 * 1024; // 10 MB por archivo
 
-  const VALID_MIMES = [
-    "text/csv",
-    "application/csv",
-    "application/vnd.ms-excel",
-    "text/plain",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
-    "application/vnd.ms-excel.sheet.macroEnabled.12", // .xlsm
-    "application/vnd.ms-excel.sheet.binary.macroEnabled.12", // .xlsb
-    "application/vnd.ms-excel.template.macroEnabled.12", // .xltm
-    "application/vnd.ms-excel.addin.macroEnabled.12", // .xlam
-    "application/vnd.ms-excel", // .xls
+  const VALID_EXT = [
+    ".csv", ".xlsx"
   ];
 
   const formatSize = (bytes) => {
@@ -29,64 +20,72 @@ export default function Dropzone({ onFileSelected, onError }) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const readFileContent = (file, callback) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      callback(file, event.target.result);
-    };
-    reader.onerror = () => {
-      onError("Error al leer el archivo");
-    };
-    reader.readAsText(file);
+  const validateFile = (file) => {
+    // defensa extra: puede venir undefined o sin name
+    if (!file || !file.name) {
+      return false;
+    }
+
+    const name = file.name.toLowerCase();
+
+    const hasValidExt = VALID_EXT.some((ext) => name.endsWith(ext));
+    if (!hasValidExt) {
+      return false;
+    }
+
+    if (file.size > MAX_SIZE) {
+      return false;
+    }
+
+    return true;
   };
 
-  const validateFiles = (files) => {
-    const validFiles = [];
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const isCsvByName = file.name.toLowerCase().endsWith(".csv");
-      const isExcelByName =
-        file.name.toLowerCase().endsWith(".xlsx") ||
-        file.name.toLowerCase().endsWith(".xls") ||
-        file.name.toLowerCase().endsWith(".xlsm");
-      const isValidByType = VALID_MIMES.includes(file.type);
+  const handleFiles = (fileList) => {
+    const filesArray = Array.from(fileList || []);
+    if (!filesArray.length) return;
 
-      if (!(isCsvByName || isExcelByName || isValidByType)) {
-        onError(
-          `El archivo ${file.name} debe ser un .csv o un archivo de Excel`
-        );
-        continue;
+    const validFiles = [];
+    const invalidFiles = [];
+
+    filesArray.forEach((file) => {
+      if (validateFile(file)) {
+        validFiles.push(file);
+      } else {
+        invalidFiles.push(file);
       }
-      if (file.size > MAX_SIZE) {
-        onError(`El archivo ${file.name} supera los 10 MB permitidos`);
-        continue;
-      }
-      validFiles.push(file);
-    }
-    onError("");
-    setSelectedFiles(validFiles);
-    // Leer el contenido de todos los archivos y pasarlos al callback
-    const results = [];
-    let processed = 0;
-    validFiles.forEach((file) => {
-      readFileContent(file, (f, content) => {
-        results.push({ file: f, content });
-        processed++;
-        if (processed === validFiles.length) {
-          onFileSelected(results);
-        }
-      });
     });
+
+    if (invalidFiles.length > 0 && validFiles.length === 0) {
+      onError(
+        "Todos los archivos son inválidos. Solo se aceptan CSV o Excel menores a 10 MB."
+      );
+      return;
+    }
+
+    if (invalidFiles.length > 0 && validFiles.length > 0) {
+      onError(
+        "Algunos archivos fueron rechazados. Solo se aceptan CSV o Excel menores a 10 MB."
+      );
+    } else {
+      onError("");
+    }
+
+    if (validFiles.length > 0) {
+      setSelectedFiles(validFiles);
+      if (onFileSelected) {
+        onFileSelected(validFiles); // siempre un array
+      }
+    }
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     setDragging(false);
-    validateFiles(e.dataTransfer.files);
+    handleFiles(e.dataTransfer.files);
   };
 
   const handleFileSelect = (e) => {
-    validateFiles(e.target.files);
+    handleFiles(e.target.files);
     e.target.value = null;
   };
 
@@ -99,7 +98,8 @@ export default function Dropzone({ onFileSelected, onError }) {
         e.preventDefault();
         setDragging(true);
       }}
-      onDragLeave={() => setDragging(false)}>
+      onDragLeave={() => setDragging(false)}
+    >
       {/* MENSAJE PRINCIPAL */}
       {selectedFiles.length === 0 && (
         <Typography
@@ -108,20 +108,27 @@ export default function Dropzone({ onFileSelected, onError }) {
             fontSize: "18px",
             textAlign: "center",
             display: "flex",
-          }}>
-          Arrastra o selecciona uno o más archivos .csv o de Excel
+          }}
+        >
+          Arrastra o selecciona uno o varios archivos .csv o de Excel
         </Typography>
       )}
 
       {/* ARCHIVOS SELECCIONADOS */}
       {selectedFiles.length > 0 && (
         <>
+          <Typography sx={{ fontWeight: 600, color: "#333", mb: 1 }}>
+            {selectedFiles.length === 1
+              ? "📄 1 archivo seleccionado"
+              : `📄 ${selectedFiles.length} archivos seleccionados`}
+          </Typography>
+
           {selectedFiles.map((file) => (
-            <Typography key={file.name} sx={{ fontWeight: 600, color: "#333" }}>
-              📄 {file.name}{" "}
-              <span style={{ fontWeight: 400, color: "#888", fontSize: 14 }}>
-                ({formatSize(file.size)})
-              </span>
+            <Typography
+              key={file.name + file.lastModified}
+              sx={{ opacity: 0.8, fontSize: "14px" }}
+            >
+              • {file.name} ({formatSize(file.size)})
             </Typography>
           ))}
         </>
@@ -131,6 +138,7 @@ export default function Dropzone({ onFileSelected, onError }) {
       <input
         ref={inputRef}
         type="file"
+        multiple
         accept=".csv,.xlsx,.xls,.xlsm,.xlsb,.xltm,.xlam"
         multiple
         onChange={handleFileSelect}
