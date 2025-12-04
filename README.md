@@ -155,12 +155,13 @@ Los archivos CSV deben contener columnas de datos de ordeño como:
 
 ---
 
-## 📄 Licencia
-
-Este proyecto es privado y de uso interno.
-
----
-
 ## 👥 Equipo
 
 Desarrollado por el equipo de Cowlytics - Tecnológico de Monterrey
+- Carlos Iván Fonseca Mondragón
+- Ana Karen Toscano Díaz
+- Maxime Vilcocq Parra
+- Galo Alejandro Del Rio Viggiano
+- Rodrigo Antonio Benítez de la Portilla
+- José Antonio Lopez Saldaña
+- Julieta Itzel Pichardo Meza
