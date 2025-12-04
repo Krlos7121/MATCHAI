@@ -86,9 +86,6 @@ function createWindow() {
     mainWindow.loadFile(htmlPath);
   }
 
-  // Abrir devtools para ayudar en debugging (puedes quitar esto en producción)
-  mainWindow.webContents.openDevTools();
-
   // Escuchar sucesos del webContents para diagnosticar fallos de carga y mensajes
   mainWindow.webContents.on("did-finish-load", () => {
     console.log("Renderer: did-finish-load");
