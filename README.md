@@ -6,6 +6,7 @@ Cowlytics es una aplicación de escritorio para la predicción de mastitis en ga
 
 ## 📋 Índice
 
+0. Manual de usuario en PDF
 1. [Guía de Uso](#-guía-de-uso)
 2. [Compilación del Instalador (Windows)](#-compilación-del-instalador-windows)
 3. [Requerimientos](#-requerimientos)
