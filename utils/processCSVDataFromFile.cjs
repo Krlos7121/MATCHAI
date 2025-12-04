@@ -4,9 +4,9 @@ if (require.main === module) {
   processCSVDataFromFile(rutaOriginal);
   const tempCSVs = exportProcessedToTempCSVs([rutaOriginal]);
   if (tempCSVs.length > 0) {
-    console.log("CSV temporal guardado en:", tempCSVs[0]);
+    //console.log("CSV temporal guardado en:", tempCSVs[0]);
   } else {
-    console.log("No se generó ningún CSV temporal.");
+    //console.log("No se generó ningún CSV temporal.");
   }
 }
 const path = require("path");
@@ -33,46 +33,46 @@ const preprocessedCache = {};
 
 function processCSVDataFromFile(filePath) {
   if (preprocessedCache[filePath]) {
-    console.log("[CACHE] Usando CSV preprocesado de caché:", filePath);
-    console.log(
-      "[PROCESADO] Resultado (cache):",
-      JSON.stringify(preprocessedCache[filePath], null, 2)
-    );
+    //console.log("[CACHE] Usando CSV preprocesado de caché:", filePath);
+    //console.log(
+    //  "[PROCESADO] Resultado (cache):",
+    //  JSON.stringify(preprocessedCache[filePath], null, 2)
+    //);
     // Guardar CSV temporal y mostrar ruta
     const tempCSVs = exportProcessedToTempCSVs([filePath]);
-    if (tempCSVs.length > 0) {
-      //console.log("[CACHE] CSV temporal guardado en:", tempCSVs[0]);
-    } else {
-      console.log("[CACHE] No se generó ningún CSV temporal.");
-    }
+    //if (tempCSVs.length > 0) {
+    //  ////console.log("[CACHE] CSV temporal guardado en:", tempCSVs[0]);
+    //} else {
+    //  //console.log("[CACHE] No se generó ningún CSV temporal.");
+    //}
     return preprocessedCache[filePath];
   }
-  // console.log("[PREPROCESO] Procesando CSV:", filePath);
+  // //console.log("[PREPROCESO] Procesando CSV:", filePath);
   const csvText = fs.readFileSync(filePath, "utf-8");
   const { rows, dailyProduction } = processCSVText(csvText);
   const result = { rows, dailyProduction };
   preprocessedCache[filePath] = result;
-  //#console.log("[PROCESADO] Resultado:", JSON.stringify(result, null, 2));
+  //#//console.log("[PROCESADO] Resultado:", JSON.stringify(result, null, 2));
   // Guardar CSV temporal y mostrar ruta
   const tempCSVs = exportProcessedToTempCSVs([filePath]);
-  if (tempCSVs.length > 0) {
-    console.log("[PROCESADO] CSV temporal guardado en:", tempCSVs[0]);
-  } else {
-    console.log("[PROCESADO] No se generó ningún CSV temporal.");
-  }
+  //if (tempCSVs.length > 0) {
+  //  //console.log("[PROCESADO] CSV temporal guardado en:", tempCSVs[0]);
+  //} else {
+  //  //console.log("[PROCESADO] No se generó ningún CSV temporal.");
+  //}
   return result;
 }
 
 function processExcelDataFromFile(filePath) {
   if (preprocessedCache[filePath]) {
-    console.log("[CACHE] Usando Excel preprocesado de caché:", filePath);
-    console.log(
-      "[PROCESADO] Resultado (cache):",
-      JSON.stringify(preprocessedCache[filePath], null, 2)
-    );
+    //console.log("[CACHE] Usando Excel preprocesado de caché:", filePath);
+    //console.log(
+    //  "[PROCESADO] Resultado (cache):",
+    //  JSON.stringify(preprocessedCache[filePath], null, 2)
+    //);
     return Promise.resolve(preprocessedCache[filePath]);
   }
-  console.log("[PREPROCESO] Procesando Excel:", filePath);
+  //console.log("[PREPROCESO] Procesando Excel:", filePath);
   return new Promise(async (resolve, reject) => {
     try {
       const workbook = new ExcelJS.Workbook();
@@ -147,7 +147,7 @@ function processExcelDataFromFile(filePath) {
 }
 
 function processAnyFile(filePath) {
-  // console.log("[PREPROCESO] Procesando archivo (any):", filePath);
+  // //console.log("[PREPROCESO] Procesando archivo (any):", filePath);
   const ext = path.extname(filePath).toLowerCase();
   if (ext === ".csv") {
     return processCSVDataFromFile(filePath);
@@ -256,7 +256,7 @@ function exportProcessedToTempCSVs(filePaths) {
   filePaths.forEach((filePath) => {
     const cache = preprocessedCache[filePath];
     if (!cache || !Array.isArray(cache.rows) || cache.rows.length === 0) {
-      console.warn(`[EXPORT] No hay datos procesados para: ${filePath}`);
+      //console.warn(`[EXPORT] No hay datos procesados para: ${filePath}`);
       return;
     }
     const headers = Object.keys(cache.rows[0]);
@@ -274,9 +274,81 @@ function exportProcessedToTempCSVs(filePaths) {
       .join("\n");
     fs.writeFileSync(tempFilePath, csvContent, "utf-8");
     exportedFiles.push(tempFilePath);
-    //console.log(`[EXPORT] CSV temporal generado: ${tempFilePath}`);
+    ////console.log(`[EXPORT] CSV temporal generado: ${tempFilePath}`);
   });
   return exportedFiles;
+}
+
+// Copia archivos originales a la carpeta uploads/ para el pipeline Python
+function copyFilesToUploads(filePaths) {
+  const uploadsDir = path.join(__dirname, "../uploads");
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  const copiedFiles = [];
+  filePaths.forEach((filePath) => {
+    const fileName = path.basename(filePath);
+    const destPath = path.join(uploadsDir, fileName);
+    try {
+      fs.copyFileSync(filePath, destPath);
+      copiedFiles.push(destPath);
+      //console.log(`[UPLOADS] Archivo copiado a: ${destPath}`);
+    } catch (err) {
+      //console.error(`[UPLOADS] Error al copiar ${filePath}:`, err.message);
+    }
+  });
+  return copiedFiles;
+}
+
+// Limpia la carpeta uploads/
+function clearUploads() {
+  const uploadsDir = path.join(__dirname, "../uploads");
+  if (fs.existsSync(uploadsDir)) {
+    fs.readdirSync(uploadsDir).forEach((file) => {
+      const curPath = path.join(uploadsDir, file);
+      if (file === ".DS_Store") return; // Ignorar .DS_Store en macOS
+      if (fs.lstatSync(curPath).isDirectory()) {
+        fs.rmSync(curPath, { recursive: true, force: true });
+      } else {
+        fs.unlinkSync(curPath);
+      }
+    });
+    //console.log("[UPLOADS] Carpeta uploads limpiada.");
+  }
+}
+
+// Limpia la carpeta temp/
+function clearTemp() {
+  const tempDir = path.join(__dirname, "../temp");
+  if (fs.existsSync(tempDir)) {
+    fs.readdirSync(tempDir).forEach((file) => {
+      const curPath = path.join(tempDir, file);
+      if (file === ".DS_Store") return;
+      if (fs.lstatSync(curPath).isDirectory()) {
+        fs.rmSync(curPath, { recursive: true, force: true });
+      } else {
+        fs.unlinkSync(curPath);
+      }
+    });
+    //console.log("[TEMP] Carpeta temp limpiada.");
+  }
+}
+
+// Limpia la carpeta processed/
+function clearProcessed() {
+  const processedDir = path.join(__dirname, "../processed");
+  if (fs.existsSync(processedDir)) {
+    fs.readdirSync(processedDir).forEach((file) => {
+      const curPath = path.join(processedDir, file);
+      if (file === ".DS_Store") return;
+      if (fs.lstatSync(curPath).isDirectory()) {
+        fs.rmSync(curPath, { recursive: true, force: true });
+      } else {
+        fs.unlinkSync(curPath);
+      }
+    });
+    //console.log("[PROCESSED] Carpeta processed limpiada.");
+  }
 }
 
 module.exports = {
@@ -284,4 +356,8 @@ module.exports = {
   processExcelDataFromFile,
   processAnyFile,
   exportProcessedToTempCSVs,
+  copyFilesToUploads,
+  clearUploads,
+  clearTemp,
+  clearProcessed,
 };

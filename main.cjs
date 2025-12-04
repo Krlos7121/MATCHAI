@@ -4,19 +4,25 @@ const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
 
-// Handler para ejecutar el pipeline de predicción en Python
+// Handler para ejecutar el pipeline de predicción de mastitis (predict_pipeline.py)
 ipcMain.handle("run-prediction-pipeline", async () => {
   return new Promise((resolve) => {
     const scriptPath = path.join(__dirname, "src/python/predict_pipeline.py");
+    const processedDir = path.join(__dirname, "processed");
+
     const pythonProcess = spawn("python3", [scriptPath]);
+
     let stdout = "";
     let stderr = "";
+
     pythonProcess.stdout.on("data", (data) => {
       stdout += data.toString();
     });
+
     pythonProcess.stderr.on("data", (data) => {
       stderr += data.toString();
     });
+
     pythonProcess.on("close", (code) => {
       if (code === 0) {
         try {
@@ -25,15 +31,24 @@ ipcMain.handle("run-prediction-pipeline", async () => {
         } catch (e) {
           resolve({
             success: false,
-            error: "Error al parsear la salida del modelo",
+            error: "Error al parsear la salida del modelo: " + e.message,
+            stdout,
+            stderr,
           });
         }
       } else {
         resolve({
           success: false,
-          error: stderr || "Error al ejecutar el pipeline",
+          error: stderr || "Error al ejecutar el pipeline de predicción",
         });
       }
+    });
+
+    pythonProcess.on("error", (err) => {
+      resolve({
+        success: false,
+        error: "No se pudo iniciar el pipeline de predicción: " + err.message,
+      });
     });
   });
 });
@@ -116,7 +131,13 @@ function createWindow() {
 }
 
 // IPC Handlers para procesar archivos
-const { processAnyFile } = require("./utils/processCSVDataFromFile.cjs");
+const {
+  processAnyFile,
+  copyFilesToUploads,
+  clearUploads,
+  clearTemp,
+  clearProcessed,
+} = require("./utils/processCSVDataFromFile.cjs");
 const { dialog } = require("electron");
 
 ipcMain.handle("process-file", async (event, filePath) => {
@@ -144,22 +165,136 @@ ipcMain.handle("select-file", async (event) => {
   return result.filePaths;
 });
 
+// Handler para copiar archivos a uploads/
+ipcMain.handle("copy-to-uploads", async (event, filePaths) => {
+  try {
+    const copiedFiles = copyFilesToUploads(filePaths);
+    return { success: true, files: copiedFiles };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Handler para limpiar uploads/
+ipcMain.handle("clear-uploads", async () => {
+  try {
+    clearUploads();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle("clear-temp", async () => {
-  const tempDir = path.join(__dirname, "temp");
-  if (fs.existsSync(tempDir)) {
-    fs.readdirSync(tempDir).forEach((file) => {
-      const curPath = path.join(tempDir, file);
-      if (fs.lstatSync(curPath).isDirectory()) {
-        fs.rmSync(curPath, { recursive: true, force: true });
+  try {
+    clearTemp();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("clear-processed", async () => {
+  try {
+    clearProcessed();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Handler para guardar archivo con diálogo nativo
+ipcMain.handle("save-file", async (event, { defaultName, content }) => {
+  try {
+    const result = await dialog.showSaveDialog({
+      defaultPath: defaultName,
+      filters: [
+        { name: "Archivos CSV", extensions: ["csv"] },
+        { name: "Todos los archivos", extensions: ["*"] },
+      ],
+    });
+    if (result.canceled || !result.filePath) {
+      return { success: false, canceled: true };
+    }
+    fs.writeFileSync(result.filePath, content, "utf-8");
+    return { success: true, filePath: result.filePath };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Handler para ejecutar el pipeline de procesamiento avanzado (pipeline_ordenos.py)
+ipcMain.handle("run-processing-pipeline", async () => {
+  return new Promise((resolve) => {
+    const scriptPath = path.join(__dirname, "src/python/pipeline_ordenos.py");
+    const uploadsDir = path.join(__dirname, "uploads");
+    const outputDir = path.join(__dirname, "processed");
+
+    const pythonProcess = spawn("python3", [
+      scriptPath,
+      "--input-dir",
+      uploadsDir,
+      "--output-dir",
+      outputDir,
+      "--json-output",
+    ]);
+
+    let stdout = "";
+    let stderr = "";
+
+    pythonProcess.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    pythonProcess.stderr.on("data", (data) => {
+      stderr += data.toString();
+      //console.log("[PIPELINE STDERR]", data.toString());
+    });
+
+    pythonProcess.on("close", (code) => {
+      if (code === 0) {
+        try {
+          const result = JSON.parse(stdout);
+          resolve({ success: true, data: result });
+        } catch (e) {
+          resolve({
+            success: false,
+            error: "Error al parsear la salida del pipeline: " + e.message,
+            stdout,
+            stderr,
+          });
+        }
       } else {
-        fs.unlinkSync(curPath);
+        resolve({
+          success: false,
+          error: stderr || "Error al ejecutar el pipeline de procesamiento",
+        });
       }
     });
-  }
-  return { success: true };
+
+    pythonProcess.on("error", (err) => {
+      resolve({
+        success: false,
+        error: "No se pudo iniciar el pipeline: " + err.message,
+      });
+    });
+  });
 });
 
 app.whenReady().then(() => {
+  // Limpiar uploads/ y processed/ al iniciar la app
+  try {
+    clearUploads();
+    console.log("[INIT] uploads/ limpiada al iniciar la app");
+  } catch (e) {
+    console.warn("[INIT] No se pudo limpiar uploads/ al iniciar:", e.message);
+  }
+  try {
+    clearProcessed();
+    console.log("[INIT] processed/ limpiada al iniciar la app");
+  } catch (e) {
+    console.warn("[INIT] No se pudo limpiar processed/ al iniciar:", e.message);
+  }
   createWindow();
 
   app.on("activate", () => {
